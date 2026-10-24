@@ -25,3 +25,17 @@ Gallery, paintings for sale and custom requests still use the earlier preview da
 7. Test: register a student; check dbo.Enrollments and dbo.Payments in the Query editor.
 
 Never commit the connection string. local.settings.json.sample shows the local-dev format.
+
+## Parent login (email one-time code)
+New files: dreamarts_auth.sql, api/src/auth.js, api/src/functions/auth.js. Parents get a "Login" menu item and a "My account" page.
+
+1. Run dreamarts_auth.sql in the Azure Query editor (adds LoginCodes, AuthSessions and Users.EmailVerifiedAt).
+2. Create the email sender: portal > "Communication Services" > create one, then "Email" > create an Email Communication Service
+   with an Azure-managed domain (free, gives you DoNotReply@xxxx.azurecomm.net), and connect that domain to the Communication Service.
+3. Static Web App > Environment variables, add:
+   AUTH_SECRET            = a long random string (32+ characters, make one up; keep it secret)
+   ACS_CONNECTION_STRING  = Communication Service > Keys > connection string
+   EMAIL_SENDER           = the DoNotReply@... address from step 2
+4. Push to GitHub (the deployment runs by itself).
+Rules: only emails already registered can log in; codes last 10 minutes, max 5 tries, max 5 codes per email per hour;
+a session lasts 7 days; an email that already has an account must log in before registering another child.

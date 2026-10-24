@@ -1,5 +1,6 @@
 const { app } = require('@azure/functions');
 const { sql, getPool, fail, handler } = require('../db');
+const { userFromToken } = require('../auth');
 const REG_FEE = Number(process.env.REGISTRATION_FEE || 20);
 const clean = (v, max) => String(v ?? '').trim().slice(0, max);
 const email = v => { v = clean(v, 256).toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw fail(400, 'Invalid email'); return v; };
@@ -34,7 +35,12 @@ app.http('plans', { methods: ['GET'], route: 'plans', authLevel: 'anonymous', ha
 // Enrollment: parent user + student + enrollment + pending payment, all in one transaction
 app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymous', handler: handler(async req => {
   const b = await req.json();
-  const parentEmail = email(b.email);
+  const me = await userFromToken(req);                       // logged-in parent: use their verified email
+  const parentEmail = me ? me.Email : email(b.email);
+  if (!me) {                                                   // an email that already has an account must log in first
+    const ex = await (await getPool()).request().input('e', sql.NVarChar(256), parentEmail).query('SELECT 1 AS x FROM dbo.Users WHERE Email=@e');
+    if (ex.recordset.length) throw fail(401, 'login_required');
+  }
   const student = clean(b.student, 120), parent = clean(b.parent, 160), phone = clean(b.phone, 30);
   const age = Number(b.age), sessionId = Number(b.sessionId), artTypeId = Number(b.artTypeId), planId = Number(b.planId);
   if (!student || !parent || !(age >= 3 && age <= 18) || !sessionId || !artTypeId || !planId) throw fail(400, 'Missing or invalid fields');
