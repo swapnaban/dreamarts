@@ -16,6 +16,18 @@ async function userFromToken(req) {
   return r.recordset[0] || null;
 }
 
+async function sendMail(to, subject, text) {
+  if (!process.env.ACS_CONNECTION_STRING || !process.env.EMAIL_SENDER) throw fail(503, 'Email sending is not configured');
+  const { EmailClient } = require('@azure/communication-email');
+  await new EmailClient(process.env.ACS_CONNECTION_STRING).beginSend({
+    senderAddress: process.env.EMAIL_SENDER, content: { subject, plainText: text }, recipients: { to: [{ address: to }] } });
+}
+const isAdmin = req => {
+  const h = req.headers.get('x-ms-client-principal');
+  try { return !!h && (JSON.parse(Buffer.from(h, 'base64').toString('utf8')).userRoles || []).includes('admin'); } catch { return false; }
+};
+const requireAdmin = req => { if (!isAdmin(req)) throw fail(403, 'Admin only'); };
+
 async function sendCode(to, code) {
   if (!process.env.ACS_CONNECTION_STRING || !process.env.EMAIL_SENDER) throw fail(503, 'Email sending is not configured');
   const { EmailClient } = require('@azure/communication-email');
@@ -26,4 +38,4 @@ async function sendCode(to, code) {
     recipients: { to: [{ address: to }] }
   });
 }
-module.exports = { hmac, newToken, code6, same, userFromToken, sendCode };
+module.exports = { hmac, newToken, code6, same, userFromToken, sendCode, sendMail, isAdmin, requireAdmin };

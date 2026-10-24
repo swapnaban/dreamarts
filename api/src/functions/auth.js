@@ -50,18 +50,3 @@ app.http('authLogout', { methods: ['POST'], route: 'auth/logout', authLevel: 'an
   return { jsonBody: { ok: true } };
 }) });
 
-// Parent dashboard data: only this user's own rows
-app.http('me', { methods: ['GET'], route: 'me', authLevel: 'anonymous', handler: handler(async req => {
-  const me = await userFromToken(req);
-  if (!me) throw fail(401, 'Please log in');
-  const pool = await getPool(), q = () => pool.request().input('u', sql.Int, me.UserId);
-  const [students, enrollments, payments] = await Promise.all([
-    q().query('SELECT StudentId, FullName, Age, Level FROM dbo.Students WHERE ParentUserId=@u ORDER BY StudentId'),
-    q().query(`SELECT e.EnrollmentId, st.FullName AS Student, e.Status, s.DayOfWeek, CONVERT(VARCHAR(5),s.StartTime,108) AS StartTime,
-                      CONVERT(VARCHAR(5),s.EndTime,108) AS EndTime, a.Name AS ArtType, p.Name AS PlanName
-               FROM dbo.Enrollments e JOIN dbo.Students st ON st.StudentId=e.StudentId JOIN dbo.Sessions s ON s.SessionId=e.SessionId
-               JOIN dbo.ArtTypes a ON a.ArtTypeId=e.ArtTypeId JOIN dbo.Plans p ON p.PlanId=e.PlanId
-               WHERE st.ParentUserId=@u ORDER BY e.EnrolledAt DESC`),
-    q().query('SELECT PaymentId, Description, Amount, Method, Status, CreatedAt, PaidAt FROM dbo.Payments WHERE UserId=@u ORDER BY CreatedAt DESC')]);
-  return { jsonBody: { name: me.FirstName, email: me.Email, phone: me.Phone, students: students.recordset, enrollments: enrollments.recordset, payments: payments.recordset } };
-}) });

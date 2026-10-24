@@ -262,6 +262,7 @@ const OPTS=CLASSES.map(c=>`<option value="${c.id}">${c.n}</option>`).join('');$(
 let db=null,assets=null,isAdmin=false,filt='all';
 async function put(col,id,data,merge){if(!db)return false;try{await(merge?db.collection(col).doc(id).update(data):db.collection(col).doc(id).set(data));return true}catch(e){console.error(e);return false}}
 async function del(col,id){try{await db.collection(col).doc(id).delete()}catch(e){console.error(e)}}
+const imgUrl=id=>API_MODE?id:'/_blob/'+id;
 const sorted=a=>[...a].sort((x,y)=>DAYS.indexOf(x.day)-DAYS.indexOf(y.day)||(x.sort||0)-(y.sort||0));
 const clabel=c=>`${c.day} ${c.time} (${c.ages})`;
 
@@ -273,15 +274,16 @@ function renderAll(){
  $('#clsSel').innerHTML=cl.map(c=>`<option value="${esc(c._id)}">${esc(clabel(c))}</option>`).join('');
  $('#planSel').innerHTML=D.plans.map(p=>`<option value="${esc(p._id)}">${esc(p.name)} – $${esc(p.price)}</option>`).join('');
  const has=(sel,v)=>[...$(sel).options].some(o=>o.value===v);if(cv&&has('#clsSel',cv))$('#clsSel').value=cv;if(pv&&has('#planSel',pv))$('#planSel').value=pv;
- $('#plans').innerHTML=D.plans.map(p=>`<div class="card" style="${p.pop?'border:2px solid var(--pri)':''}">${p.pop?'<span class="tag">Most popular</span>':''}<h3>${esc(p.name)}</h3><div class="price">$${esc(p.price)}</div><p class="mut">${esc(p.desc)}</p><button class="btn sm" data-pay="${esc(p._id)}">Pay now</button></div>`).join('');
+ $('#plans').innerHTML=D.plans.map(p=>`<div class="card" style="${p.pop?'border:2px solid var(--pri)':''}">${p.pop?'<span class="tag">Most popular</span>':''}<h3>${esc(p.name)}</h3><div class="price">$${esc(p.price)}</div><p class="mut">${esc(p.desc)}</p>${API_MODE?'':`<button class="btn sm" data-pay="${esc(p._id)}">Pay now</button>`}</div>`).join('');
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>{const p=D.plans.find(x=>x._id===b.dataset.pay);checkout({kind:'Fees',item:{n:p.name,p:p.price}})});
  drawG();drawShop()}
 function drawG(){$('#gtabs').innerHTML=[['all','All'],...CLASSES.map(c=>[c.id,c.n])].map(t=>`<button class="chip ${filt===t[0]?'on':''}" data-f="${t[0]}">${t[1]}</button>`).join('');
  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filt=b.dataset.f;drawG()});
- $('#ggrid').innerHTML=D.artworks.map((a,i)=>({a,i})).filter(({a})=>filt==='all'||a.style===filt).map(({a,i})=>`<div class="art" role="img" aria-label="${esc(a.title)}">${a.imageId?`<img src="/_blob/${esc(a.imageId)}" alt="" style="width:100%;aspect-ratio:3/2;object-fit:cover;display:block">`:artSvg(a.style,i)}<div class="meta"><div><b>${esc(a.title)}</b><small>${esc(a.artist)} · ${esc(cn(a.style))}</small></div></div></div>`).join('')||'<p class="mut">Nothing here yet.</p>'}
-function drawShop(){$('#sgrid').innerHTML=D.paintings.map((a,i)=>{const sold=a.status==='Sold';return `<div class="art" role="img" aria-label="${esc(a.title)}"><div style="position:relative">${a.imageId?`<img src="/_blob/${esc(a.imageId)}" alt="" style="width:100%;aspect-ratio:3/2;object-fit:cover;display:block">`:artSvg(a.style,i+20)}<span class="ptag ${sold?'sold':''}">${sold?'Sold':'$'+esc(a.price)}</span></div><div class="meta"><div><b>${esc(a.title)}</b><small>${esc(a.artist||'Dream Arts')} · ${esc(cn(a.style))}${a.size?' · '+esc(a.size):''}</small></div>${sold?'<span class="tag">Sold</span>':`<button class="btn sm" data-buy="${esc(a._id)}">Buy · $${esc(a.price)}</button>`}</div></div>`}).join('')||'<p class="mut">No paintings listed right now. Request a custom one below!</p>';
- document.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{const a=D.paintings.find(x=>x._id===b.dataset.buy);checkout({kind:'Painting',item:{n:a.title,p:a.price,art:a._id}})})}
+ $('#ggrid').innerHTML=D.artworks.map((a,i)=>({a,i})).filter(({a})=>filt==='all'||a.style===filt).map(({a,i})=>`<div class="art" role="img" aria-label="${esc(a.title)}">${a.imageId?`<img src="${imgUrl(a.imageId)}" alt="" style="width:100%;aspect-ratio:3/2;object-fit:cover;display:block">`:artSvg(a.style,i)}<div class="meta"><div><b>${esc(a.title)}</b><small>${esc(a.artist)} · ${esc(cn(a.style))}</small></div></div></div>`).join('')||'<p class="mut">Nothing here yet.</p>'}
+function drawShop(){$('#sgrid').innerHTML=D.paintings.map((a,i)=>{const sold=a.status!=='Available';return `<div class="art" role="img" aria-label="${esc(a.title)}"><div style="position:relative">${a.imageId?`<img src="${imgUrl(a.imageId)}" alt="" style="width:100%;aspect-ratio:3/2;object-fit:cover;display:block">`:artSvg(a.style,i+20)}<span class="ptag ${sold?'sold':''}">${sold?(a.status==='Reserved'?'Reserved':'Sold'):'$'+esc(a.price)}</span></div><div class="meta"><div><b>${esc(a.title)}</b><small>${esc(a.artist||'Dream Arts')} · ${esc(cn(a.style))}${a.size?' · '+esc(a.size):''}</small></div>${sold?`<span class="tag">${a.status==='Reserved'?'Reserved':'Sold'}</span>`:`<button class="btn sm" data-buy="${esc(a._id)}">Buy · $${esc(a.price)}</button>`}</div></div>`}).join('')||'<p class="mut">No paintings listed right now. Request a custom one below!</p>';
+ document.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{const a=D.paintings.find(x=>x._id===b.dataset.buy);if(API_MODE)return buyApi(a);checkout({kind:'Painting',item:{n:a.title,p:a.price,art:a._id}})})}
 $('#creq').onsubmit=async e=>{e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));
+ if(API_MODE)return custApi(f,d);
  const o={name:d.name,email:d.email,phone:d.phone,type:d.type,size:d.size,budget:+d.budget||0,details:d.details,status:'New',createdAt:new Date().toISOString()},file=f.photo.files[0];
  if(file&&assets){try{o.imageId=(await assets.upload(file)).id}catch(x){toast('Reference photo could not be uploaded')}}
  const ok=await put('requests',uid(),o);if(ok)f.reset();
@@ -313,13 +315,15 @@ const API_MODE=typeof claude==='undefined',API='/api';
 let TOKEN=(()=>{try{return localStorage.getItem('da_token')}catch(e){return null}})(),ME=null,acctStep='email',acctEmail='';
 const J=async(u,o={})=>{const r=await fetch(API+u,{method:o.method||'GET',headers:{'Content-Type':'application/json',...(TOKEN?{'x-da-token':TOKEN}:{})},body:o.body?JSON.stringify(o.body):undefined});const d=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(d.error||r.status),{status:r.status});return d};
 const hm=t=>{const[h,m]=t.split(':').map(Number);return(h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM')};
-let ARTT=[];
+let ARTT=[];const stId=n=>(CLASSES.find(c=>c.n===n)||{}).id||'pencil';
 async function loadApi(){const[ss,at,pl]=await Promise.all([J('/sessions'),J('/arttypes'),J('/plans')]);ARTT=at;
  D.classes=ss.map(x=>({_id:String(x.SessionId),day:DAYS[x.DayOfWeek-1],time:hm(x.StartTime)+'–'+hm(x.EndTime),ages:x.AgeGroup,capacity:x.Capacity,enrolled:x.Enrolled,sort:+x.StartTime.replace(':','')}));
+  J('/paintings').then(r=>{D.paintings=r.map(p=>({_id:String(p.PaintingId),title:p.Title,artist:p.ArtistName,style:stId(p.ArtType),price:+p.Price,size:p.SizeText,imageId:p.ImageUrl,status:p.Status==='Sold'?'Sold':p.Status==='Reserved'?'Reserved':'Available'}));drawShop()}).catch(()=>{});
+ J('/artworks').then(r=>{D.artworks=r.map(p=>({_id:String(p.ArtworkId),title:p.Title,artist:p.ArtistName,style:stId(p.ArtType),imageId:p.ImageUrl}));drawG()}).catch(()=>{});
  D.plans=pl.map(p=>({_id:String(p.PlanId),name:p.Name,price:+p.Price,desc:p.Description||'',pop:p.Name==='Monthly'}));renderAll()}
 async function apiReg(e,d){try{const at=ARTT.find(a=>a.Name===cn(d.art));if(!at)throw new Error('Art type not found');
  await J('/register',{method:'POST',body:{student:d.student,age:+d.age,parent:d.parent,email:d.email,phone:d.phone,level:d.level,notes:d.notes,sessionId:+d.cls,artTypeId:at.ArtTypeId,planId:+d.plan}});
- e.target.reset();toast('Thank you! Registration received. We will email you shortly.');loadApi();if(TOKEN)loadMe()}
+ e.target.reset();toast('Thank you! We will review the class time and email you when it is approved. You can log in after approval.');loadApi();if(TOKEN)loadMe()}
  catch(x){if(x.message==='login_required'){toast('This email already has an account. Please log in first.');acctEmail=d.email;acctStep='email';renderAcct();location.hash='account'}
  else toast(x.message==='full'?'Sorry, that session is full. Please choose another.':'Registration could not be saved: '+x.message)}}
 // ----- parent account (email one-time code) -----
@@ -328,36 +332,92 @@ async function loadMe(){try{ME=await J('/me')}catch(x){ME=null;setTok(null)}acct
 function acctUi(){const l=$('#acctLink');l.style.display='';l.textContent=ME?'My account':'Login';
  const em=$('#reg [name=email]');if(ME){em.value=ME.email;em.readOnly=true;if(!$('#reg [name=parent]').value)$('#reg [name=parent]').value=ME.name||'';if(!$('#reg [name=phone]').value)$('#reg [name=phone]').value=ME.phone||''}else em.readOnly=false;renderAcct()}
 async function acctInit(){$('#acctLink').style.display='';if(TOKEN)await loadMe();else acctUi()}
+const MODAL=h=>{$('#payBox').innerHTML=h;$('#pay').classList.add('open')};
+const closeM=()=>$('#pay').classList.remove('open');
+const zelleHtml=(z,amount,ref)=>`<h3>Pay with Zelle</h3><p>Send <b class="price" style="font-size:1.5rem">$${esc(amount)}</b> to:</p>
+ <p style="font-size:1.25rem;margin:4px 0"><b>${esc(z.phone||'(phone number not set yet)')}</b> ${z.phone?`<button class="btn sm alt" id="cpy">Copy</button>`:''}</p>
+ ${z.qrImageId?`<img src="/api/images/${esc(z.qrImageId)}" alt="Zelle QR code" style="width:200px;max-width:70%;display:block;margin:10px auto;border-radius:12px;border:1px solid var(--line)">`:''}
+ <p class="mut" style="font-size:.9rem">In Zelle, scan the QR code or enter the phone number, and put <b>${esc(ref)}</b> in the memo. We confirm payments within one business day.</p>`;
+function zelleModal(z,amount,ref,payId){MODAL(zelleHtml(z,amount,ref)+`<div style="display:flex;gap:8px;flex-wrap:wrap">${payId?`<button class="btn" id="sent">I have sent the payment</button>`:''}<button class="btn alt" id="cm">Close</button></div>`);
+ $('#cm').onclick=closeM;const c=$('#cpy');if(c)c.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(z.phone);toast('Phone number copied')};
+ const s=$('#sent');if(s)s.onclick=async()=>{try{await J('/me/payments/'+payId+'/submitted',{method:'POST'});closeM();toast('Thank you! We will confirm your payment soon.');loadMe()}catch(x){toast(x.message)}}}
+function buyApi(a){MODAL(`<h3>Buy this painting</h3><p><b>${esc(a.title)}</b><br><span class="price">$${esc(a.price)}</span></p><form id="bf" style="grid-template-columns:1fr"><label>Your name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>Phone<input name="phone" type="tel"></label><div style="display:flex;gap:8px"><button class="btn">Reserve and pay</button><button class="btn alt" type="button" id="cm">Cancel</button></div></form>`);
+ $('#cm').onclick=closeM;$('#bf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));
+  try{const r=await J('/purchase',{method:'POST',body:{paintingId:+a._id,name:d.name,email:d.email}});zelleModal(r.zelle,r.amount,r.reference,0);J('/paintings').then(x=>{D.paintings=x.map(p=>({_id:String(p.PaintingId),title:p.Title,artist:p.ArtistName,style:stId(p.ArtType),price:+p.Price,size:p.SizeText,imageId:p.ImageUrl,status:p.Status}));drawShop()})}
+  catch(x){toast(x.message==='sold'?'Sorry, this painting was just reserved by someone else.':x.message)}}}
+async function shrink(file){return new Promise((ok,no)=>{const im=new Image();im.onload=()=>{const m=1400,k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.82).split(',')[1])};im.onerror=()=>no(new Error('Could not read that image'));im.src=URL.createObjectURL(file)})}
+async function upImg(file){if(!file)return null;const data=await shrink(file);const r=await J('/images',{method:'POST',body:{contentType:'image/jpeg',data}});return r.imageId}
+async function custApi(f,d){try{const at=ARTT.find(a=>a.Name===cn(d.type));let imageId=null;const file=f.photo.files[0];
+ if(file){if(!TOKEN){toast('Please log in to attach a photo, or send it to us by email.');return}imageId=await upImg(file)}
+ await J('/custom-requests',{method:'POST',body:{name:d.name,email:d.email,phone:d.phone,artTypeId:at&&at.ArtTypeId,size:d.size,budget:d.budget,details:d.details,imageId}});f.reset();toast('Request sent! We will contact you with a quote.')}catch(x){toast(x.message)}}
+const RT={ScheduleChange:'Change my schedule',AdditionalClass:'Additional class',MissedClass:'Make-up for a missed class'};
+const when=e=>`${DAYS[e.DayOfWeek-1]} ${hm(e.StartTime)}–${hm(e.EndTime)}`;
 function renderAcct(){const b=$('#acctBox');if(!b)return;
  const T=(h,r)=>`<div class="card tablewrap" style="margin-bottom:16px"><table style="min-width:480px"><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.join('')||'<tr><td colspan="9">None yet.</td></tr>'}</table></div>`;
- if(ME){b.innerHTML=`<p>Hello <b>${esc(ME.name)}</b> <span class="mut">(${esc(ME.email)})</span></p>
- <h3>Enrollments</h3>${T(['Student','Session','Art type','Plan','Status'],ME.enrollments.map(e=>`<tr><td>${esc(e.Student)}</td><td>${esc(DAYS[e.DayOfWeek-1])} ${esc(hm(e.StartTime))}–${esc(hm(e.EndTime))}</td><td>${esc(e.ArtType)}</td><td>${esc(e.PlanName)}</td><td>${esc(e.Status)}</td></tr>`))}
- <h3>Payments</h3>${T(['Date','Item','Amount','Status'],ME.payments.map(p=>`<tr><td>${esc((p.CreatedAt||'').slice(0,10))}</td><td>${esc(p.Description)}</td><td>$${esc(p.Amount)}</td><td>${esc(p.Status)}</td></tr>`))}
- <p><a class="btn" href="#register">Register another child</a> &nbsp; <button class="btn alt" id="lo">Log out</button></p>`;
+ if(ME){const act=ME.enrollments.filter(e=>e.Status==='Active');
+  b.innerHTML=`<p>Hello <b>${esc(ME.name)}</b> <span class="mut">(${esc(ME.email)})</span></p>
+ <p><a class="btn sm alt" href="#gallery">Student paintings</a> <a class="btn sm alt" href="#shop">Paintings for sale</a> <a class="btn sm" href="#register">Register another child</a></p>
+ <h3>Class schedule</h3>${T(['Student','When','Art type','Plan','Status'],ME.enrollments.map(e=>`<tr><td>${esc(e.Student)}</td><td>${esc(when(e))}</td><td>${esc(e.ArtType)}</td><td>${esc(e.PlanName)}</td><td>${e.Status==='Pending'?'Awaiting approval':esc(e.Status)}</td></tr>`))}
+ <h3>Payments</h3>${T(['Date','Item','Amount','Status',''],ME.payments.map(p=>`<tr><td>${esc((p.CreatedAt||'').slice(0,10))}</td><td>${esc(p.Description)}</td><td>$${esc(p.Amount)}</td><td>${esc(p.Status==='Submitted'?'Payment sent, awaiting confirmation':p.Status)}</td><td>${p.Status==='Pending'?`<button class="btn sm" data-zl="${p.PaymentId}">Pay with Zelle</button>`:''}</td></tr>`))}
+ <h3>Request a change</h3>
+ <form id="rf" class="card" style="margin-bottom:16px"><label>What do you need?<select name="type">${Object.entries(RT).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+ <label>Student / class<select name="enr">${act.map(e=>`<option value="${e.EnrollmentId}">${esc(e.Student)} – ${esc(when(e))}</option>`).join('')||'<option value="">(no active class yet)</option>'}</select></label>
+ <label>Preferred new session<select name="sess"><option value="">(not needed)</option>${sorted(D.classes).map(c=>`<option value="${esc(c._id)}">${esc(c.day)} ${esc(c.time)}</option>`).join('')}</select></label>
+ <label>Missed class date<input type="date" name="date"></label>
+ <label class="full">Message<textarea name="msg" rows="2" placeholder="Anything we should know?"></textarea></label><div class="full"><button class="btn">Send request</button></div></form>
+ ${ME.requests.length?T(['Date','Request','Status','Reply'],ME.requests.map(r=>`<tr><td>${esc((r.CreatedAt||'').slice(0,10))}</td><td>${esc(RT[r.RequestType])}${r.ClassDate?` (${esc(r.ClassDate)})`:''}</td><td>${esc(r.Status)}</td><td>${esc(r.AdminNote||'')}</td></tr>`)):''}
+ <p><button class="btn alt" id="lo">Log out</button></p>`;
+  document.querySelectorAll('[data-zl]').forEach(x=>x.onclick=()=>{const p=ME.payments.find(v=>v.PaymentId==x.dataset.zl);zelleModal(ME.zelle,p.Amount,'DA-'+p.PaymentId,p.PaymentId)});
+  $('#rf').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));try{await J('/me/requests',{method:'POST',body:{type:d.type,enrollmentId:+d.enr||null,preferredSessionId:+d.sess||null,classDate:d.date,message:d.msg}});toast('Request sent. We will reply soon.');loadMe()}catch(x){toast(x.message)}};
   $('#lo').onclick=async()=>{try{await J('/auth/logout',{method:'POST'})}catch(x){}setTok(null);ME=null;acctStep='email';acctUi()};return}
- b.innerHTML=acctStep==='email'?`<p class="mut">Registered a child already? Enter your email and we will send you a 6-digit code. No password needed.</p>
+ b.innerHTML=acctStep==='email'?`<p class="mut">Already enrolled? Enter your email and we will send you a 6-digit code. New families can log in once the teacher has approved their class time.</p>
  <form id="lf1" class="card" style="grid-template-columns:1fr"><label>Email<input type="email" name="email" value="${esc(acctEmail)}" required></label><div><button class="btn" type="submit">Send me a code</button></div></form>`
  :`<p class="mut">We sent a 6-digit code to <b>${esc(acctEmail)}</b>. It expires in 10 minutes.</p>
  <form id="lf2" class="card" style="grid-template-columns:1fr"><label>Code<input name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" required></label><div><button class="btn" type="submit">Log in</button> &nbsp; <button class="btn alt" type="button" id="lback">Use a different email</button></div></form>`;
  const f1=$('#lf1'),f2=$('#lf2');
- if(f1)f1.onsubmit=async e=>{e.preventDefault();acctEmail=new FormData(f1).get('email');try{await J('/auth/request',{method:'POST',body:{email:acctEmail}});acctStep='code';renderAcct();toast('If that email has an account, a code is on its way.')}catch(x){toast(x.message)}};
+ if(f1)f1.onsubmit=async e=>{e.preventDefault();acctEmail=new FormData(f1).get('email');try{await J('/auth/request',{method:'POST',body:{email:acctEmail}});acctStep='code';renderAcct();toast('If that email is approved, a code is on its way.')}catch(x){toast(x.message)}};
  if(f2){$('#lback').onclick=()=>{acctStep='email';renderAcct()};f2.onsubmit=async e=>{e.preventDefault();try{const r=await J('/auth/verify',{method:'POST',body:{email:acctEmail,code:new FormData(f2).get('code')}});setTok(r.token);await loadMe();toast('Welcome, '+r.name+'!')}catch(x){toast(x.message)}}}}
-async function adminApi(){let en,pay;try{[en,pay]=await Promise.all([J('/admin/enrollments'),J('/admin/payments')])}catch(x){return} // not signed in as admin: stay hidden
+async function adminApi(){let en,pay,rq,cr,st;try{[en,pay,rq,cr,st]=await Promise.all([J('/admin/enrollments'),J('/admin/payments'),J('/admin/requests'),J('/admin/custom-requests'),J('/admin/settings')])}catch(x){return}
  $('#adminLink').style.display='';
  const T=(h,r)=>`<div class="card tablewrap" style="margin-bottom:18px"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.join('')||'<tr><td colspan="9">None yet.</td></tr>'}</table></div>`;
- const cnt={};en.filter(e=>e.Status==='Active').forEach(e=>cnt[e.SessionId]=1);
- const ss=sorted(D.classes);
- $('#admBox').innerHTML='<h3>Payments</h3>'+T(['Date','Payer','Item','Amount','Status',''],pay.map(p=>`<tr><td>${esc((p.CreatedAt||'').slice(0,10))}</td><td>${esc(p.PayerName)}<br><small>${esc(p.PayerEmail)}</small></td><td>${esc(p.Description)}</td><td>$${esc(p.Amount)}</td><td>${esc(p.Status)}</td><td>${p.Status==='Paid'?'':`<button class="btn sm alt" data-act="paid" data-id="${p.PaymentId}">Mark paid</button>`}</td></tr>`))
- +'<h3>Enrollments</h3>'+T(['Student','Parent','Contact','Session','Art type','Plan','Status'],en.map(e=>`<tr><td>${esc(e.Student)} (${esc(e.Age)})</td><td>${esc(e.Parent)}</td><td>${esc(e.Email)}<br>${esc(e.Phone)}</td><td>${esc(DAYS[e.DayOfWeek-1])} ${esc(hm(e.StartTime))}–${esc(hm(e.EndTime))}</td><td>${esc(e.ArtType)}</td><td>${esc(e.PlanName)}</td><td><select data-st="${e.EnrollmentId}">${['Active','Paused','Cancelled'].map(v=>`<option ${v===e.Status?'selected':''}>${v}</option>`).join('')}</select></td></tr>`))
- +'<h3>Class schedule</h3>'+T(['Day / time','Ages','Seats',''],ss.map(c=>`<tr><td>${esc(c.day)} ${esc(c.time)}</td><td>${esc(c.ages)}</td><td>${c.enrolled} / ${c.capacity}</td><td><button class="btn sm alt" data-act="delcls" data-id="${esc(c._id)}">Delete</button></td></tr>`))
- +`<form id="addCls" class="card" style="margin-bottom:18px"><label>Day<select name="day">${DAYS.map((d,i)=>`<option value="${i+1}">${d}</option>`).join('')}</select></label><label>Ages<input name="ages" value="All ages" required></label><label>Start<input type="time" name="start" required></label><label>End<input type="time" name="end" required></label><label>Capacity<input type="number" name="cap" value="8" min="1" required></label><div class="full"><button class="btn sm">Add class slot</button></div></form>`;
+ const B=(a,id,t,x='')=>`<button class="btn sm alt" data-act="${a}" data-id="${esc(id)}" ${x}>${t}</button>`;
+ const ss=sorted(D.classes),STY=CLASSES.map(c=>`<option value="${ARTT.find(a=>a.Name===c.n)?.ArtTypeId||''}">${c.n}</option>`).join('');
+ const pend=en.filter(e=>e.Status==='Pending');
+ $('#admBox').innerHTML=`<h3>Waiting for approval (${pend.length})</h3>`+T(['Student','Parent','Contact','Requested time','Art type','Plan','Action'],pend.map(e=>`<tr><td>${esc(e.Student)} (${esc(e.Age)})</td><td>${esc(e.Parent)}</td><td>${esc(e.Email)}<br>${esc(e.Phone)}</td>
+  <td><select data-sess="${e.EnrollmentId}">${ss.map(c=>`<option value="${esc(c._id)}" ${c._id==e.SessionId?'selected':''}>${esc(c.day)} ${esc(c.time)} (${c.enrolled}/${c.capacity})</option>`).join('')}</select></td><td>${esc(e.ArtType)}</td><td>${esc(e.PlanName)}</td>
+  <td>${B('accept',e.EnrollmentId,'Accept &amp; enable login')} ${B('decline',e.EnrollmentId,'Decline')}</td></tr>`))
+ +'<h3>Parent requests</h3>'+T(['Date','Parent','Request','Details','Status','Reply'],rq.map(r=>`<tr><td>${esc((r.CreatedAt||'').slice(0,10))}</td><td>${esc(r.Parent)}<br><small>${esc(r.Email)}</small></td><td>${esc(RT[r.RequestType])}<br><small>${esc(r.Student||'')} ${r.PDay?'→ '+esc(DAYS[r.PDay-1]+' '+hm(r.PStart)):''} ${esc(r.ClassDate||'')}</small></td><td>${esc(r.Message||'')}</td><td>${esc(r.Status)}</td>
+  <td>${r.Status==='Pending'?`<input data-note="${r.RequestId}" placeholder="Note (optional)" style="min-width:140px"> ${B('rqok',r.RequestId,'Approve')} ${B('rqno',r.RequestId,'Decline')}`:esc(r.AdminNote||'')}</td></tr>`))
+ +'<h3>Payments</h3>'+T(['Date','Payer','Item','Amount','Status',''],pay.map(p=>`<tr><td>${esc((p.CreatedAt||'').slice(0,10))}</td><td>${esc(p.PayerName)}<br><small>${esc(p.PayerEmail)}</small></td><td>${esc(p.Description)}</td><td>$${esc(p.Amount)}</td><td>${esc(p.Status)}</td><td>${p.Status==='Paid'?'':B('paid',p.PaymentId,'Mark paid')+' '+B('failp',p.PaymentId,'Failed / release')}</td></tr>`))
+ +'<h3>All enrollments</h3>'+T(['Student','Parent','Session','Art type','Status'],en.map(e=>`<tr><td>${esc(e.Student)}</td><td>${esc(e.Parent)}<br><small>${esc(e.Email)}</small></td><td>${esc(when(e))}</td><td>${esc(e.ArtType)}</td><td><select data-st="${e.EnrollmentId}">${['Pending','Active','Paused','Cancelled','Declined'].map(v=>`<option ${v===e.Status?'selected':''}>${v}</option>`).join('')}</select></td></tr>`))
+ +'<h3>Class schedule</h3>'+T(['Day / time','Ages','Seats',''],ss.map(c=>`<tr><td>${esc(c.day)} ${esc(c.time)}</td><td>${esc(c.ages)}</td><td>${c.enrolled} / ${c.capacity}</td><td>${B('delcls',c._id,'Delete')}</td></tr>`))
+ +`<form id="addCls" class="card" style="margin-bottom:18px"><label>Day<select name="day">${DAYS.map((d,i)=>`<option value="${i+1}">${d}</option>`).join('')}</select></label><label>Ages<input name="ages" value="All ages" required></label><label>Start<input type="time" name="start" required></label><label>End<input type="time" name="end" required></label><label>Capacity<input type="number" name="cap" value="8" min="1" required></label><div class="full"><button class="btn sm">Add class slot</button></div></form>`
+ +'<h3>Paintings for sale</h3>'+T(['Painting','Price','Status',''],D.paintings.map(a=>`<tr><td>${esc(a.title)}<br><small>${esc(a.artist)}</small></td><td>$${esc(a.price)}</td><td>${esc(a.status)}</td><td>${B('pprice',a._id,'Price')} ${B('pstat',a._id,a.status==='Available'?'Mark sold':'Make available',`data-s="${esc(a.status)}"`)} ${B('pdel',a._id,'Delete')}</td></tr>`))
+ +`<form id="addPnt" class="card" style="margin-bottom:18px"><label>Title<input name="title" required></label><label>Artist<input name="artist" value="Dream Arts" required></label><label>Art type<select name="at">${STY}</select></label><label>Size<input name="size" placeholder="12x16 in"></label><label>Price ($)<input type="number" name="price" min="0" required></label><label>Photo<input type="file" name="img" accept="image/*" required></label><div class="full"><button class="btn sm">Upload painting for sale</button></div></form>`
+ +'<h3>Student gallery</h3>'+T(['Title','Artist',''],D.artworks.map(a=>`<tr><td>${esc(a.title)}</td><td>${esc(a.artist)}</td><td>${B('adel',a._id,'Delete')}</td></tr>`))
+ +`<form id="addArt" class="card" style="margin-bottom:18px"><label>Title<input name="title" required></label><label>Artist (name, age)<input name="artist" required></label><label>Art type<select name="at">${STY}</select></label><label>Photo<input type="file" name="img" accept="image/*" required></label><div class="full"><button class="btn sm">Upload to student gallery</button></div></form>`
+ +'<h3>Custom painting requests</h3>'+T(['Date','Customer','Request','Budget','Photo','Status'],cr.map(r=>`<tr><td>${esc((r.CreatedAt||'').slice(0,10))}</td><td>${esc(r.Name)}<br><small>${esc(r.Email)} ${esc(r.Phone||'')}</small></td><td>${esc(r.ArtType||'')} · ${esc(r.SizeText||'')}<br>${esc(r.Details)}</td><td>$${esc(r.Budget||0)}</td><td>${r.ReferenceImageUrl?`<a href="${esc(r.ReferenceImageUrl)}" target="_blank">View</a>`:'-'}</td><td><select data-cr="${r.RequestId}">${['New','Quoted','In progress','Completed','Declined'].map(v=>`<option ${v===r.Status?'selected':''}>${v}</option>`).join('')}</select></td></tr>`))
+ +`<h3>Zelle payment settings</h3><form id="zf" class="card" style="margin-bottom:18px"><label>Zelle phone number<input name="phone" value="${esc(st.zellePhone||'')}" placeholder="(555) 123-4567"></label><label>Zelle QR code image (from your bank app)<input type="file" name="qr" accept="image/*"></label>${st.zelleQrImageId?`<div class="full"><img src="/api/images/${esc(st.zelleQrImageId)}" alt="QR" style="width:120px;border-radius:8px"></div>`:''}<div class="full"><button class="btn sm">Save Zelle settings</button></div></form>`;
  const run=async f=>{try{await f()}catch(x){toast(x.message)}await loadApi();adminApi()};
- $('#admBox').onclick=e=>{const b=e.target.closest('[data-act]');if(!b)return;const id=b.dataset.id;
-  if(b.dataset.act==='paid')run(()=>J('/admin/payments/'+id,{method:'PATCH',body:{status:'Paid'}}));
-  else if(confirm('Delete this class slot?'))run(()=>J('/admin/sessions/'+id,{method:'DELETE'}))};
- $('#admBox').onchange=e=>{if(e.target.dataset.st)run(()=>J('/admin/enrollments/'+e.target.dataset.st,{method:'PATCH',body:{status:e.target.value}}))};
- $('#admBox').onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));
-  run(()=>J('/admin/sessions',{method:'POST',body:{dayOfWeek:+d.day,start:d.start,end:d.end,ageGroup:d.ages,capacity:+d.cap}}))}}
+ const price=()=>{const v=prompt('New price ($)');return v!==null&&v!==''&&!isNaN(+v)?+v:null};
+ const note=id=>(document.querySelector(`[data-note="${id}"]`)||{}).value||'';
+ $('#admBox').onclick=e=>{const b=e.target.closest('[data-act]');if(!b)return;const id=b.dataset.id,a=b.dataset.act;
+  if(a==='accept'){const se=document.querySelector(`[data-sess="${id}"]`).value;run(()=>J('/admin/enrollments/'+id,{method:'PATCH',body:{status:'Active',sessionId:+se}}))}
+  else if(a==='decline'){if(confirm('Decline this enrollment?'))run(()=>J('/admin/enrollments/'+id,{method:'PATCH',body:{status:'Declined'}}))}
+  else if(a==='rqok'||a==='rqno')run(()=>J('/admin/requests/'+id,{method:'PATCH',body:{status:a==='rqok'?'Approved':'Declined',adminNote:note(id)}}))
+  else if(a==='paid')run(()=>J('/admin/payments/'+id,{method:'PATCH',body:{status:'Paid'}}))
+  else if(a==='failp')run(()=>J('/admin/payments/'+id,{method:'PATCH',body:{status:'Failed'}}))
+  else if(a==='delcls'){if(confirm('Delete this class slot?'))run(()=>J('/admin/sessions/'+id,{method:'DELETE'}))}
+  else if(a==='pprice'){const v=price();if(v!==null)run(()=>J('/admin/paintings/'+id,{method:'PATCH',body:{price:v}}))}
+  else if(a==='pstat')run(()=>J('/admin/paintings/'+id,{method:'PATCH',body:{status:b.dataset.s==='Available'?'Sold':'Available'}}))
+  else if(a==='pdel'){if(confirm('Delete this painting?'))run(()=>J('/admin/paintings/'+id,{method:'DELETE'}))}
+  else if(a==='adel'){if(confirm('Delete this artwork?'))run(()=>J('/admin/artworks/'+id,{method:'DELETE'}))}};
+ $('#admBox').onchange=e=>{const t=e.target.dataset;if(t.st)run(()=>J('/admin/enrollments/'+t.st,{method:'PATCH',body:{status:e.target.value}}));else if(t.cr)run(()=>J('/admin/custom-requests/'+t.cr,{method:'PATCH',body:{status:e.target.value}}))};
+ $('#admBox').onsubmit=e=>{e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));
+  if(f.id==='addCls')run(()=>J('/admin/sessions',{method:'POST',body:{dayOfWeek:+d.day,start:d.start,end:d.end,ageGroup:d.ages,capacity:+d.cap}}));
+  else if(f.id==='addPnt')run(async()=>{const imageId=await upImg(f.img.files[0]);await J('/admin/paintings',{method:'POST',body:{title:d.title,artist:d.artist,artTypeId:+d.at,size:d.size,price:+d.price,imageId}})});
+  else if(f.id==='addArt')run(async()=>{const imageId=await upImg(f.img.files[0]);await J('/admin/artworks',{method:'POST',body:{title:d.title,artist:d.artist,artTypeId:+d.at,imageId}})});
+  else if(f.id==='zf')run(async()=>{const body={zellePhone:d.phone};if(f.qr.files[0])body.zelleQrImageId=await upImg(f.qr.files[0]);await J('/admin/settings',{method:'PUT',body});toast('Zelle settings saved')})};}
 
 // Admin
 const sel=(n,o)=>`<select name="${n}">${o.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}</select>`;
@@ -410,6 +470,44 @@ const bg=$('#burger'),lk=document.querySelector('.links');
 bg.onclick=()=>{const o=lk.classList.toggle('open');bg.setAttribute('aria-expanded',o);bg.textContent=o?'✕':'☰'};
 lk.onclick=e=>{if(e.target.closest('a')){lk.classList.remove('open');bg.setAttribute('aria-expanded','false');bg.textContent='☰'}};
 addEventListener('hashchange',route);route();
+// ===== FAQ chat (no AI service needed: answers come from this list and the live schedule/fees) =====
+(function(){
+ const sched=()=>{const by={};sorted(D.classes).forEach(c=>(by[c.day]=by[c.day]||[]).push(c.time));return Object.entries(by).map(([d,t])=>d+': '+t.join(', ')).join(' | ')+' | Sunday: no classes'};
+ const FAQ=[
+  {q:'Class timings',k:['time','timing','schedule','hour','when','open','sunday','saturday','weekday','day'],a:()=>'Classes are 1 hour each. '+sched()+'.',l:['#schedule','See the schedule']},
+  {q:'Fees and plans',k:['fee','fees','price','cost','plan','how much','charge','monthly','term','drop'],a:()=>'Plans: '+D.plans.map(p=>p.name+' $'+p.price+' ('+p.desc+')').join('; ')+'. There is a one-time $20 registration fee for new students. Materials are included.',l:['#fees','See fees']},
+  {q:'How do I register?',k:['register','registration','enrol','enroll','join','sign up','signup','admission','new student'],a:()=>'Open the Register page, fill in your child\'s details and choose a session and art type. The teacher reviews the class time and emails you once it is approved. After approval you can log in with your email.',l:['#register','Register now']},
+  {q:'Art types taught',k:['art type','types','medium','oil','acrylic','watercolor','pastel','pencil','digital','what do you teach','what do you offer','classes offered'],a:()=>'We teach '+CLASSES.map(c=>c.n).join(', ')+'.',l:['#classes','See classes']},
+  {q:'How do I log in?',k:['login','log in','sign in','account','password','code','otp'],a:()=>'Use the Login page and enter the email you registered with. We email you a 6-digit code, so there is no password. Login is enabled after the teacher approves your child\'s class time.',l:['#account','Go to login']},
+  {q:'How do I pay?',k:['pay','payment','zelle','qr','barcode','invoice','paid'],a:()=>'Payments are by Zelle. After approval, open My account, click "Pay with Zelle" next to the payment, then scan the QR code or send to the phone number shown, and put the reference (like DA-12) in the memo. Click "I have sent the payment" and we confirm within one business day.',l:['#account','Open my account']},
+  {q:'Missed class or change time',k:['miss','missed','makeup','make-up','make up','change','reschedule','additional','extra class','another class','cancel'],a:()=>'Log in, go to My account and use "Request a change" to ask for a schedule change, an additional class, or a make-up for a missed class. The teacher replies there and by email.',l:['#account','Open my account']},
+  {q:'Buy a painting',k:['buy','sale','sell','purchase','painting for sale','artwork','shop'],a:()=>'Visit Gallery > Sale to see paintings with prices. Click Buy, enter your details and pay by Zelle. You can also request a custom painting from the same page by describing it or attaching a photo.',l:['#shop','See paintings for sale']},
+  {q:'Custom painting',k:['custom','commission','request a painting','based on','photo','portrait'],a:()=>'On the Sale page, use "Request a custom painting": tell us the art type, size, budget and what you would like. Logged-in parents can also attach a reference photo. We reply with a quote.',l:['#shop','Request a painting']},
+  {q:'Class size and ages',k:['age','ages','old','how many','size','group','small','kids','children','beginner'],a:()=>'Sessions are open to children of all ages and levels, in small groups of up to 8 students so everyone gets attention.'},
+  {q:'Contact us',k:['contact','phone','email','call','address','where','location','reach'],a:()=>'You can reach us at '+(document.querySelector('footer')?document.querySelector('footer').innerText.split('\n').filter(x=>/@|\(\d/.test(x)).join(' ').trim()||'the contact details in the footer':'the footer')+'.'}
+ ];
+ const css=document.createElement('style');css.textContent=`.cbtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;width:58px;height:58px;border-radius:50%;border:0;background:var(--pri);color:#fff;font-size:1.6rem;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+ .cbox{position:fixed;right:16px;bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:40;width:350px;max-width:calc(100vw - 32px);height:460px;max-height:calc(100vh - 120px);background:var(--surf);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 36px rgba(0,0,0,.28);display:none;flex-direction:column;overflow:hidden}
+ .cbox.open{display:flex}.chd{background:var(--pri);color:#fff;padding:12px 16px;font-weight:600;display:flex;justify-content:space-between;align-items:center}.chd button{background:none;border:0;color:#fff;font-size:1.2rem;cursor:pointer}
+ .cmsg{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}.cm{max-width:88%;padding:9px 12px;border-radius:14px;font-size:.92rem;line-height:1.45;white-space:pre-wrap}
+ .cm.bot{background:var(--bg);border:1px solid var(--line);align-self:flex-start}.cm.me{background:var(--ink);color:var(--bg);align-self:flex-end}.cm a{display:inline-block;margin-top:6px;color:var(--pri);font-weight:600}
+ .cch{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}.cch button{border:1px solid var(--line);background:var(--surf);color:var(--ink);border-radius:999px;padding:5px 11px;font-size:.8rem;cursor:pointer}
+ .cin{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}.cin input{flex:1;border-radius:999px;padding:9px 14px}.cin button{border:0;background:var(--pri);color:#fff;border-radius:999px;padding:0 16px;font-weight:600;cursor:pointer}`;
+ document.head.appendChild(css);
+ const btn=document.createElement('button');btn.className='cbtn';btn.setAttribute('aria-label','Open chat');btn.textContent='💬';
+ const box=document.createElement('div');box.className='cbox';box.setAttribute('role','dialog');box.setAttribute('aria-label','Dream Arts help chat');
+ box.innerHTML='<div class="chd"><span>Ask Dream Arts</span><button aria-label="Close chat">✕</button></div><div class="cmsg" aria-live="polite"></div><div class="cch"></div><form class="cin"><input placeholder="Type your question…" aria-label="Your question"><button>Send</button></form>';
+ document.body.append(btn,box);
+ const msgs=box.querySelector('.cmsg'),chips=box.querySelector('.cch'),inp=box.querySelector('input');
+ const add=(t,who,l)=>{const d=document.createElement('div');d.className='cm '+who;d.textContent=t;if(l){const a=document.createElement('a');a.href=l[0];a.textContent=l[1]+' →';a.onclick=()=>{if(innerWidth<760)box.classList.remove('open')};d.appendChild(document.createElement('br'));d.appendChild(a)}msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
+ const answer=t=>{const w=t.toLowerCase();let best=null,sc=0;FAQ.forEach(f=>{const s=f.k.reduce((n,k)=>n+(w.includes(k)?k.length:0),0);if(s>sc){sc=s;best=f}});
+  if(best)add(best.a(),'bot',best.l);else add('I am not sure about that one. Please pick a topic below, or contact the teacher directly using the details in the page footer.','bot')};
+ const ask=t=>{add(t,'me');setTimeout(()=>answer(t),250)};
+ chips.innerHTML='';FAQ.slice(0,8).forEach(f=>{const b=document.createElement('button');b.type='button';b.textContent=f.q;b.onclick=()=>ask(f.q);chips.appendChild(b)});
+ box.querySelector('form').onsubmit=e=>{e.preventDefault();const t=inp.value.trim();if(t){inp.value='';ask(t)}};
+ const toggle=o=>{box.classList.toggle('open',o);btn.textContent=box.classList.contains('open')?'✕':'💬';if(box.classList.contains('open')&&!msgs.children.length)add('Hi! I can answer questions about classes, timings, fees, registration, payments and paintings. Tap a topic or type your question.','bot')};
+ btn.onclick=()=>toggle();box.querySelector('.chd button').onclick=()=>toggle(false);
+})();
 </script>
 </body>
 </html>

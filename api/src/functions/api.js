@@ -38,8 +38,8 @@ app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymo
   const me = await userFromToken(req);                       // logged-in parent: use their verified email
   const parentEmail = me ? me.Email : email(b.email);
   if (!me) {                                                   // an email that already has an account must log in first
-    const ex = await (await getPool()).request().input('e', sql.NVarChar(256), parentEmail).query('SELECT 1 AS x FROM dbo.Users WHERE Email=@e');
-    if (ex.recordset.length) throw fail(401, 'login_required');
+    const ex = await (await getPool()).request().input('e', sql.NVarChar(256), parentEmail).query('SELECT 1 AS x FROM dbo.Users WHERE Email=@e AND IsActive=1');
+    if (ex.recordset.length) throw fail(401, 'login_required');   // inactive = still awaiting approval, may add another child
   }
   const student = clean(b.student, 120), parent = clean(b.parent, 160), phone = clean(b.phone, 30);
   const age = Number(b.age), sessionId = Number(b.sessionId), artTypeId = Number(b.artTypeId), planId = Number(b.planId);
@@ -53,7 +53,7 @@ app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymo
     // lock the session row so two parents cannot take the last seat at the same time
     const s = await rq().input('id', sql.Int, sessionId).query('SELECT Capacity FROM dbo.Sessions WITH (UPDLOCK, HOLDLOCK) WHERE SessionId=@id AND IsActive=1');
     if (!s.recordset.length) throw fail(404, 'Session not found');
-    const c = await rq().input('id', sql.Int, sessionId).query("SELECT COUNT(*) AS n FROM dbo.Enrollments WHERE SessionId=@id AND Status='Active'");
+    const c = await rq().input('id', sql.Int, sessionId).query("SELECT COUNT(*) AS n FROM dbo.Enrollments WHERE SessionId=@id AND Status IN ('Pending','Active')");
     if (c.recordset[0].n >= s.recordset[0].Capacity) throw fail(409, 'full');
 
     const pl = await rq().input('p', sql.SmallInt, planId).query('SELECT Name, Price FROM dbo.Plans WHERE PlanId=@p AND IsActive=1');
@@ -63,7 +63,7 @@ app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymo
     let userId = u.recordset[0]?.UserId;
     if (!userId) {
       u = await rq().input('e', sql.NVarChar(256), parentEmail).input('f', sql.NVarChar(80), parent.slice(0, 80)).input('ph', sql.NVarChar(30), phone)
-        .query('INSERT dbo.Users (RoleId, Email, FirstName, Phone) OUTPUT INSERTED.UserId VALUES (2, @e, @f, @ph)'); // RoleId 2 = User
+        .query('INSERT dbo.Users (RoleId, Email, FirstName, Phone, IsActive) OUTPUT INSERTED.UserId VALUES (2, @e, @f, @ph, 0)'); // RoleId 2 = User
       userId = u.recordset[0].UserId;
     }
     const st = await rq().input('u', sql.Int, userId).input('n', sql.NVarChar(120), student).input('a', sql.TinyInt, age)
@@ -71,11 +71,7 @@ app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymo
       .query('INSERT dbo.Students (ParentUserId, FullName, Age, Level, Notes) OUTPUT INSERTED.StudentId VALUES (@u,@n,@a,@l,@no)');
     const en = await rq().input('s', sql.Int, st.recordset[0].StudentId).input('se', sql.Int, sessionId)
       .input('at', sql.SmallInt, artTypeId).input('p', sql.SmallInt, planId)
-      .query('INSERT dbo.Enrollments (StudentId, SessionId, ArtTypeId, PlanId) OUTPUT INSERTED.EnrollmentId VALUES (@s,@se,@at,@p)');
-    await rq().input('u', sql.Int, userId).input('n', sql.NVarChar(120), parent).input('e', sql.NVarChar(256), parentEmail)
-      .input('en', sql.Int, en.recordset[0].EnrollmentId).input('d', sql.NVarChar(200), `${pl.recordset[0].Name} + registration fee`)
-      .input('am', sql.Decimal(10, 2), Number(pl.recordset[0].Price) + REG_FEE)
-      .query("INSERT dbo.Payments (UserId, PayerName, PayerEmail, PaymentType, EnrollmentId, Description, Amount) VALUES (@u,@n,@e,'Fees',@en,@d,@am)");
+      .query('INSERT dbo.Enrollments (StudentId, SessionId, ArtTypeId, PlanId, Status) OUTPUT INSERTED.EnrollmentId VALUES (@s,@se,@at,@p,\'Pending\')');
     await tx.commit();
     return { status: 201, jsonBody: { ok: true, enrollmentId: en.recordset[0].EnrollmentId } };
   } catch (e) {
@@ -89,7 +85,7 @@ app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymo
 app.http('adminEnrollments', { methods: ['GET'], route: 'admin/enrollments', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
   const r = await (await getPool()).request().query(`
-    SELECT e.EnrollmentId, e.Status, e.EnrolledAt, st.FullName AS Student, st.Age, u.FirstName AS Parent, u.Email, u.Phone,
+    SELECT e.EnrollmentId, e.SessionId, e.Status, e.EnrolledAt, st.FullName AS Student, st.Age, u.FirstName AS Parent, u.Email, u.Phone,
            s.DayOfWeek, CONVERT(VARCHAR(5),s.StartTime,108) AS StartTime, CONVERT(VARCHAR(5),s.EndTime,108) AS EndTime,
            a.Name AS ArtType, p.Name AS PlanName
     FROM dbo.Enrollments e JOIN dbo.Students st ON st.StudentId=e.StudentId JOIN dbo.Users u ON u.UserId=st.ParentUserId
@@ -98,14 +94,6 @@ app.http('adminEnrollments', { methods: ['GET'], route: 'admin/enrollments', aut
   return { jsonBody: r.recordset };
 }) });
 
-app.http('adminEnrollmentUpdate', { methods: ['PATCH'], route: 'admin/enrollments/{id}', authLevel: 'anonymous', handler: handler(async req => {
-  requireAdmin(req);
-  const b = await req.json();
-  if (!['Active', 'Paused', 'Cancelled'].includes(b.status)) throw fail(400, 'Bad status');
-  await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).input('s', sql.NVarChar(20), b.status)
-    .query('UPDATE dbo.Enrollments SET Status=@s WHERE EnrollmentId=@id');
-  return { jsonBody: { ok: true } };
-}) });
 
 app.http('adminSessionCreate', { methods: ['POST'], route: 'admin/sessions', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
@@ -132,11 +120,3 @@ app.http('adminPayments', { methods: ['GET'], route: 'admin/payments', authLevel
   return { jsonBody: r.recordset };
 }) });
 
-app.http('adminPaymentUpdate', { methods: ['PATCH'], route: 'admin/payments/{id}', authLevel: 'anonymous', handler: handler(async req => {
-  requireAdmin(req);
-  const b = await req.json();
-  if (!['Pending', 'Paid', 'Failed', 'Refunded'].includes(b.status)) throw fail(400, 'Bad status');
-  await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).input('s', sql.NVarChar(20), b.status)
-    .query("UPDATE dbo.Payments SET Status=@s, PaidAt=CASE WHEN @s='Paid' THEN SYSUTCDATETIME() ELSE PaidAt END WHERE PaymentId=@id");
-  return { jsonBody: { ok: true } };
-}) });
