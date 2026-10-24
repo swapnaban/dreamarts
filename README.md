@@ -39,3 +39,22 @@ New files: dreamarts_auth.sql, api/src/auth.js, api/src/functions/auth.js. Paren
 4. Push to GitHub (the deployment runs by itself).
 Rules: only emails already registered can log in; codes last 10 minutes, max 5 tries, max 5 codes per email per hour;
 a session lasts 7 days; an email that already has an account must log in before registering another child.
+
+## Version 2 (approval workflow, Zelle, requests, uploads, FAQ chat)
+1. Run dreamarts_v2.sql in the Azure Query editor (run each numbered block separately if the editor complains). It adds the
+   Pending/Declined enrollment statuses, the Submitted payment status, and the tables Images, Settings and ChangeRequests.
+2. Replace the repo files with this zip and push. No new environment variables are needed.
+3. Sign in as admin (/.auth/login/aad) > Admin page:
+   * "Zelle payment settings": type your Zelle phone number and upload the QR image from your bank app (Zelle > Receive/QR code).
+   * "Upload painting for sale" / "Upload to student gallery": pick a photo; it is shrunk in the browser (about 1400 px) and stored in the database.
+How it works now
+* A new registration is "Pending" and holds a seat. The parent account stays DISABLED, so no login code is sent.
+* Admin > "Waiting for approval": pick/confirm the time and click "Accept & enable login". That activates the enrollment and the parent
+  login, creates the first payment (plan + $20 registration fee for the first child), and emails the parent. "Decline" emails them too.
+* Parents (My account) see only their own schedule, payments, requests; they can pay by Zelle (QR + phone + reference DA-<id>),
+  press "I have sent the payment", and request a schedule change / additional class / missed-class make-up.
+* Visitors can buy a painting without an account: it is Reserved, they get the Zelle instructions, and Admin > Payments "Mark paid" sets it Sold.
+  "Failed / release" puts it back on sale.
+* The chat bubble answers common questions from a built-in list (no paid AI service).
+Troubleshooting: open /api/health (shows which settings exist and the database error code, never secrets). Azure SQL free
+databases pause when idle: the first request after a quiet period can fail while it wakes (about a minute). Delete health.js when done.
