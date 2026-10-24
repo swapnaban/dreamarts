@@ -58,3 +58,8 @@ How it works now
 * The chat bubble answers common questions from a built-in list (no paid AI service).
 Troubleshooting: open /api/health (shows which settings exist and the database error code, never secrets). Azure SQL free
 databases pause when idle: the first request after a quiet period can fail while it wakes (about a minute). Delete health.js when done.
+
+## Admin sign-in without portal role management
+Set the app setting ADMIN_EMAILS to your sign-in name (comma-separate several). To find it: sign in at /.auth/login/aad (or /.auth/login/github),
+then open /.auth/me and copy the "userDetails" value. Example: ADMIN_EMAILS = you@outlook.com
+(the old method, inviting the role "admin" in Role management, still works too).

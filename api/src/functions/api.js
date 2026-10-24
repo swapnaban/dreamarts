@@ -1,16 +1,10 @@
 const { app } = require('@azure/functions');
 const { sql, getPool, fail, handler } = require('../db');
-const { userFromToken } = require('../auth');
+const { userFromToken, requireAdmin } = require('../auth');
 const REG_FEE = Number(process.env.REGISTRATION_FEE || 20);
 const clean = (v, max) => String(v ?? '').trim().slice(0, max);
 const email = v => { v = clean(v, 256).toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw fail(400, 'Invalid email'); return v; };
 
-// Admin routes are protected by staticwebapp.config.json (role "admin"); this is a second check.
-const requireAdmin = req => {
-  const h = req.headers.get('x-ms-client-principal');
-  const p = h ? JSON.parse(Buffer.from(h, 'base64').toString('utf8')) : null;
-  if (!p || !(p.userRoles || []).includes('admin')) throw fail(403, 'Admin only');
-};
 
 // ---------- public ----------
 app.http('sessions', { methods: ['GET'], route: 'sessions', authLevel: 'anonymous', handler: handler(async () => {

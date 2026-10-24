@@ -22,9 +22,15 @@ async function sendMail(to, subject, text) {
   await new EmailClient(process.env.ACS_CONNECTION_STRING).beginSend({
     senderAddress: process.env.EMAIL_SENDER, content: { subject, plainText: text }, recipients: { to: [{ address: to }] } });
 }
+// Admin = has the SWA role "admin" (portal invitation) OR is signed in with an account listed in the ADMIN_EMAILS app setting
+// (comma-separated, matched against the sign-in name shown at /.auth/me as userDetails).
+const adminList = () => (process.env.ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
 const isAdmin = req => {
   const h = req.headers.get('x-ms-client-principal');
-  try { return !!h && (JSON.parse(Buffer.from(h, 'base64').toString('utf8')).userRoles || []).includes('admin'); } catch { return false; }
+  try {
+    const p = JSON.parse(Buffer.from(h, 'base64').toString('utf8')), roles = p.userRoles || [];
+    return roles.includes('admin') || (roles.includes('authenticated') && adminList().includes(String(p.userDetails || '').toLowerCase()));
+  } catch { return false; }
 };
 const requireAdmin = req => { if (!isAdmin(req)) throw fail(403, 'Admin only'); };
 
