@@ -1,0 +1,136 @@
+const { app } = require('@azure/functions');
+const { sql, getPool, fail, handler } = require('../db');
+const REG_FEE = Number(process.env.REGISTRATION_FEE || 20);
+const clean = (v, max) => String(v ?? '').trim().slice(0, max);
+const email = v => { v = clean(v, 256).toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw fail(400, 'Invalid email'); return v; };
+
+// Admin routes are protected by staticwebapp.config.json (role "admin"); this is a second check.
+const requireAdmin = req => {
+  const h = req.headers.get('x-ms-client-principal');
+  const p = h ? JSON.parse(Buffer.from(h, 'base64').toString('utf8')) : null;
+  if (!p || !(p.userRoles || []).includes('admin')) throw fail(403, 'Admin only');
+};
+
+// ---------- public ----------
+app.http('sessions', { methods: ['GET'], route: 'sessions', authLevel: 'anonymous', handler: handler(async () => {
+  const r = await (await getPool()).request().query(`
+    SELECT SessionId, DayOfWeek, CONVERT(VARCHAR(5),StartTime,108) AS StartTime, CONVERT(VARCHAR(5),EndTime,108) AS EndTime,
+           AgeGroup, Capacity, Enrolled, SeatsLeft
+    FROM dbo.vw_SessionCapacity v WHERE EXISTS (SELECT 1 FROM dbo.Sessions s WHERE s.SessionId=v.SessionId AND s.IsActive=1)
+    ORDER BY DayOfWeek, StartTime`);
+  return { jsonBody: r.recordset };
+}) });
+
+app.http('arttypes', { methods: ['GET'], route: 'arttypes', authLevel: 'anonymous', handler: handler(async () => {
+  const r = await (await getPool()).request().query('SELECT ArtTypeId, Name, Description FROM dbo.ArtTypes WHERE IsActive=1 ORDER BY ArtTypeId');
+  return { jsonBody: r.recordset };
+}) });
+
+app.http('plans', { methods: ['GET'], route: 'plans', authLevel: 'anonymous', handler: handler(async () => {
+  const r = await (await getPool()).request().query('SELECT PlanId, Name, Price, Description FROM dbo.Plans WHERE IsActive=1 ORDER BY Price');
+  return { jsonBody: r.recordset };
+}) });
+
+// Enrollment: parent user + student + enrollment + pending payment, all in one transaction
+app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymous', handler: handler(async req => {
+  const b = await req.json();
+  const parentEmail = email(b.email);
+  const student = clean(b.student, 120), parent = clean(b.parent, 160), phone = clean(b.phone, 30);
+  const age = Number(b.age), sessionId = Number(b.sessionId), artTypeId = Number(b.artTypeId), planId = Number(b.planId);
+  if (!student || !parent || !(age >= 3 && age <= 18) || !sessionId || !artTypeId || !planId) throw fail(400, 'Missing or invalid fields');
+  const level = ['Beginner', 'Some experience', 'Advanced'].includes(b.level) ? b.level : 'Beginner';
+
+  const tx = new sql.Transaction(await getPool());
+  await tx.begin();
+  const rq = () => new sql.Request(tx);
+  try {
+    // lock the session row so two parents cannot take the last seat at the same time
+    const s = await rq().input('id', sql.Int, sessionId).query('SELECT Capacity FROM dbo.Sessions WITH (UPDLOCK, HOLDLOCK) WHERE SessionId=@id AND IsActive=1');
+    if (!s.recordset.length) throw fail(404, 'Session not found');
+    const c = await rq().input('id', sql.Int, sessionId).query("SELECT COUNT(*) AS n FROM dbo.Enrollments WHERE SessionId=@id AND Status='Active'");
+    if (c.recordset[0].n >= s.recordset[0].Capacity) throw fail(409, 'full');
+
+    const pl = await rq().input('p', sql.SmallInt, planId).query('SELECT Name, Price FROM dbo.Plans WHERE PlanId=@p AND IsActive=1');
+    if (!pl.recordset.length) throw fail(400, 'Unknown plan');
+
+    let u = await rq().input('e', sql.NVarChar(256), parentEmail).query('SELECT UserId FROM dbo.Users WHERE Email=@e');
+    let userId = u.recordset[0]?.UserId;
+    if (!userId) {
+      u = await rq().input('e', sql.NVarChar(256), parentEmail).input('f', sql.NVarChar(80), parent.slice(0, 80)).input('ph', sql.NVarChar(30), phone)
+        .query('INSERT dbo.Users (RoleId, Email, FirstName, Phone) OUTPUT INSERTED.UserId VALUES (2, @e, @f, @ph)'); // RoleId 2 = User
+      userId = u.recordset[0].UserId;
+    }
+    const st = await rq().input('u', sql.Int, userId).input('n', sql.NVarChar(120), student).input('a', sql.TinyInt, age)
+      .input('l', sql.NVarChar(30), level).input('no', sql.NVarChar(1000), clean(b.notes, 1000))
+      .query('INSERT dbo.Students (ParentUserId, FullName, Age, Level, Notes) OUTPUT INSERTED.StudentId VALUES (@u,@n,@a,@l,@no)');
+    const en = await rq().input('s', sql.Int, st.recordset[0].StudentId).input('se', sql.Int, sessionId)
+      .input('at', sql.SmallInt, artTypeId).input('p', sql.SmallInt, planId)
+      .query('INSERT dbo.Enrollments (StudentId, SessionId, ArtTypeId, PlanId) OUTPUT INSERTED.EnrollmentId VALUES (@s,@se,@at,@p)');
+    await rq().input('u', sql.Int, userId).input('n', sql.NVarChar(120), parent).input('e', sql.NVarChar(256), parentEmail)
+      .input('en', sql.Int, en.recordset[0].EnrollmentId).input('d', sql.NVarChar(200), `${pl.recordset[0].Name} + registration fee`)
+      .input('am', sql.Decimal(10, 2), Number(pl.recordset[0].Price) + REG_FEE)
+      .query("INSERT dbo.Payments (UserId, PayerName, PayerEmail, PaymentType, EnrollmentId, Description, Amount) VALUES (@u,@n,@e,'Fees',@en,@d,@am)");
+    await tx.commit();
+    return { status: 201, jsonBody: { ok: true, enrollmentId: en.recordset[0].EnrollmentId } };
+  } catch (e) {
+    await tx.rollback().catch(() => {});
+    if (e.number === 2627 || e.number === 2601) throw fail(409, 'This student is already enrolled in that session');
+    throw e;
+  }
+}) });
+
+// ---------- admin ----------
+app.http('adminEnrollments', { methods: ['GET'], route: 'admin/enrollments', authLevel: 'anonymous', handler: handler(async req => {
+  requireAdmin(req);
+  const r = await (await getPool()).request().query(`
+    SELECT e.EnrollmentId, e.Status, e.EnrolledAt, st.FullName AS Student, st.Age, u.FirstName AS Parent, u.Email, u.Phone,
+           s.DayOfWeek, CONVERT(VARCHAR(5),s.StartTime,108) AS StartTime, CONVERT(VARCHAR(5),s.EndTime,108) AS EndTime,
+           a.Name AS ArtType, p.Name AS PlanName
+    FROM dbo.Enrollments e JOIN dbo.Students st ON st.StudentId=e.StudentId JOIN dbo.Users u ON u.UserId=st.ParentUserId
+    JOIN dbo.Sessions s ON s.SessionId=e.SessionId JOIN dbo.ArtTypes a ON a.ArtTypeId=e.ArtTypeId JOIN dbo.Plans p ON p.PlanId=e.PlanId
+    ORDER BY e.EnrolledAt DESC`);
+  return { jsonBody: r.recordset };
+}) });
+
+app.http('adminEnrollmentUpdate', { methods: ['PATCH'], route: 'admin/enrollments/{id}', authLevel: 'anonymous', handler: handler(async req => {
+  requireAdmin(req);
+  const b = await req.json();
+  if (!['Active', 'Paused', 'Cancelled'].includes(b.status)) throw fail(400, 'Bad status');
+  await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).input('s', sql.NVarChar(20), b.status)
+    .query('UPDATE dbo.Enrollments SET Status=@s WHERE EnrollmentId=@id');
+  return { jsonBody: { ok: true } };
+}) });
+
+app.http('adminSessionCreate', { methods: ['POST'], route: 'admin/sessions', authLevel: 'anonymous', handler: handler(async req => {
+  requireAdmin(req);
+  const b = await req.json();
+  const day = Number(b.dayOfWeek), cap = Number(b.capacity || 8);
+  if (!(day >= 1 && day <= 6) || !/^\d\d:\d\d$/.test(b.start) || !/^\d\d:\d\d$/.test(b.end) || b.end <= b.start || !(cap >= 1 && cap <= 50)) throw fail(400, 'Invalid session (Sunday is closed)');
+  try {
+    const r = await (await getPool()).request().input('d', sql.TinyInt, day).input('s', sql.VarChar(5), b.start).input('e', sql.VarChar(5), b.end)
+      .input('a', sql.NVarChar(40), clean(b.ageGroup || 'All ages', 40)).input('c', sql.TinyInt, cap)
+      .query('INSERT dbo.Sessions (DayOfWeek, StartTime, EndTime, AgeGroup, Capacity) OUTPUT INSERTED.SessionId VALUES (@d, CAST(@s AS TIME(0)), CAST(@e AS TIME(0)), @a, @c)');
+    return { status: 201, jsonBody: { ok: true, sessionId: r.recordset[0].SessionId } };
+  } catch (e) { if (e.number === 2627 || e.number === 2601) throw fail(409, 'A session already starts at that time'); throw e; }
+}) });
+
+app.http('adminSessionDelete', { methods: ['DELETE'], route: 'admin/sessions/{id}', authLevel: 'anonymous', handler: handler(async req => {
+  requireAdmin(req);
+  await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).query('UPDATE dbo.Sessions SET IsActive=0 WHERE SessionId=@id'); // soft delete keeps enrollment history
+  return { jsonBody: { ok: true } };
+}) });
+
+app.http('adminPayments', { methods: ['GET'], route: 'admin/payments', authLevel: 'anonymous', handler: handler(async req => {
+  requireAdmin(req);
+  const r = await (await getPool()).request().query('SELECT TOP 200 PaymentId, PayerName, PayerEmail, PaymentType, Description, Amount, Method, Status, CreatedAt, PaidAt FROM dbo.Payments ORDER BY CreatedAt DESC');
+  return { jsonBody: r.recordset };
+}) });
+
+app.http('adminPaymentUpdate', { methods: ['PATCH'], route: 'admin/payments/{id}', authLevel: 'anonymous', handler: handler(async req => {
+  requireAdmin(req);
+  const b = await req.json();
+  if (!['Pending', 'Paid', 'Failed', 'Refunded'].includes(b.status)) throw fail(400, 'Bad status');
+  await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).input('s', sql.NVarChar(20), b.status)
+    .query("UPDATE dbo.Payments SET Status=@s, PaidAt=CASE WHEN @s='Paid' THEN SYSUTCDATETIME() ELSE PaidAt END WHERE PaymentId=@id");
+  return { jsonBody: { ok: true } };
+}) });
