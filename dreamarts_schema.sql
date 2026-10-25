@@ -166,9 +166,8 @@ INSERT dbo.ArtTypes (Name, Description) VALUES
  ('Mixed Media & Collage','Paper, paint and found materials combined.');
 
 INSERT dbo.Plans (Name, Price, Description, ClassCount) VALUES
- ('Drop-in', 25.00, 'Single class, no commitment', 1),
- ('Monthly', 80.00, '4 classes per month', 4),
- ('Term (12 weeks)', 210.00, '12 classes + exhibition entry', 12);
+ ('One-on-One Class', 35.00, 'Private one-on-one class with the teacher', 1),
+ ('Monthly', 80.00, '4 classes per month', 4);
 
 -- Mon-Fri 5-6 PM and 6-7 PM, Saturday 10-11 AM and 11 AM-12 PM. Sunday closed.
 INSERT dbo.Sessions (DayOfWeek, StartTime, EndTime)

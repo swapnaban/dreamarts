@@ -235,6 +235,25 @@ footer{background:#2a2640;color:#d8d4ee;padding:40px 0;font-size:.9rem}
 .s-weed{transform-origin:50% 100%;transform-box:fill-box;animation:swd 3s ease-in-out infinite}@keyframes swd{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
 .s-drift{animation:pfdrift 7s ease-in-out infinite}.s-rays{animation:pfspin 20s linear infinite;transform-box:fill-box;transform-origin:center}
 @media(prefers-reduced-motion:reduce){.herofig svg *{animation:none!important}}
+
+/* ---- mobile polish ---- */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overflow-x:clip;-webkit-tap-highlight-color:transparent}img,video,svg{max-width:100%}
+.view{overflow-x:clip}
+@media(pointer:coarse){.btn.sm,.chip,.acts .btn,.acts2 .btn{min-height:42px;padding-top:9px;padding-bottom:9px}.btn{min-height:44px}.dd .menu a,.links a{min-height:44px;display:flex;align-items:center}}
+@media(max-width:600px){
+ .cbtn{width:50px!important;height:50px!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;font-size:1.35rem!important;opacity:.95}
+ .cbox{right:8px!important;left:8px!important;width:auto!important;max-width:none!important;bottom:calc(70px + env(safe-area-inset-bottom,0px))!important;max-height:calc(100dvh - 110px)!important}
+ footer{padding-bottom:84px}
+ .wrap{padding-left:16px;padding-right:16px}
+ .hero{padding:36px 0 32px}.hm{padding-top:32px}.hm h2{font-size:1.45rem}
+ .plans2{gap:16px}
+ input,select,textarea{font-size:16px}
+ .pbody .split,.homegrid{gap:24px}
+}
+@media(min-width:360px) and (max-width:480px){.logo small{display:inline-block!important;font-size:.9rem}.logo .lt{min-width:0}.logo{gap:8px}}
+@media(max-width:359px){.logo small{display:none!important}}
+@media(max-width:480px){nav .wrap{padding-left:12px;padding-right:12px}}
+@supports(height:100dvh){.cbox{max-height:calc(100dvh - 120px)}}
 </style>
 </head>
 <body>
@@ -418,7 +437,7 @@ footer{background:#2a2640;color:#d8d4ee;padding:40px 0;font-size:.9rem}
 </form>
 </div></section>
 <section class="view" id="fees" style="padding:0">
-<div class="phead"><div class="wrap pg"><div class="ptxt"><span class="eyebrow">Fees</span><h1>Simple, clear fees</h1><p>Choose the plan that fits your family. Every plan includes one-hour classes in small groups with a skilled teacher.</p></div><svg class="pfig" viewBox="0 0 240 160" aria-hidden="true">
+<div class="phead"><div class="wrap pg"><div class="ptxt"><span class="eyebrow">Fees</span><h1>Simple, clear fees</h1><p>Choose the plan that fits your family. Every plan includes one-hour classes with a skilled, friendly teacher.</p></div><svg class="pfig" viewBox="0 0 240 160" aria-hidden="true">
 <ellipse cx="120" cy="148" rx="96" ry="7" fill="#2a2640" opacity=".12"/>
 <g transform="translate(26 58)"><g class="pf-sway" style="transform-origin:50% 0"><path d="M0 0v10" stroke="#2a2640" stroke-width="3"/><path d="M-20 14h40l10 16v50a8 8 0 0 1-8 8h-44a8 8 0 0 1-8-8V30z" fill="#fff" stroke="#2a2640" stroke-width="3.5" stroke-linejoin="round"/><circle cx="0" cy="24" r="4" fill="#2a2640"/><text x="0" y="68" text-anchor="middle" font-family="Fraunces,serif" font-weight="700" font-size="30" fill="#e8553d">$</text><path d="M-18 78h36" stroke="#1f9d8f" stroke-width="4" stroke-linecap="round"/></g></g>
 <g transform="translate(112 42)"><path d="M10 40C-6 38-8 8 14 0 38-6 60 8 62 30c1 14-10 18-20 14-8-3-12 4-8 12 3 8-8 14-24 4z" fill="#ffe3c8" stroke="#2a2640" stroke-width="3.5" stroke-linejoin="round"/><circle class="pf-pulse" style="animation-delay:0s" cx="20" cy="14" r="7" fill="#e8553d"/><circle class="pf-pulse" style="animation-delay:.5s" cx="40" cy="10" r="7" fill="#f6b93b"/><circle class="pf-pulse" style="animation-delay:1s" cx="52" cy="26" r="7" fill="#1f9d8f"/><circle class="pf-pulse" style="animation-delay:1.5s" cx="14" cy="32" r="6" fill="#7c5cff"/></g>
@@ -505,7 +524,7 @@ let D={
  classes:SCHED.map((s,i)=>({_id:'c'+i,day:s[0],time:s[1],style:s[2],ages:s[3],capacity:8,sort:s[4]})),
  artworks:ART0.map((a,i)=>({_id:'a'+i,title:a[0],artist:a[1],style:a[2],price:a[3],status:'Available'})),
  paintings:[['Golden Fields','oil',120],['Blue Harbor','acrylic',150],['Spring Garden','water',95],['Sleepy Fox','pastel',80]].map((p,i)=>({_id:'p'+i,title:p[0],artist:'Dream Arts',style:p[1],price:p[2],status:'Available'})),
- plans:[{_id:'drop',name:'Drop-in',price:25,count:1,desc:'Single class, no commitment'},{_id:'month',name:'Monthly',price:80,count:4,desc:'4 classes per month',pop:1},{_id:'term',name:'Term (12 weeks)',price:210,count:12,desc:'12 classes + exhibition entry'}]};
+ plans:[{_id:'one',name:'One-on-One Class',price:35,count:1,desc:'Private one-on-one class with the teacher'},{_id:'month',name:'Monthly',price:80,count:4,desc:'4 classes per month',pop:1}]};
 const PAL={water:['#8ecae6','#ffb4a2','#bde0c4','#e5c1f5'],cartoon:['#ffd166','#ef476f','#06d6a0','#118ab2'],pencil:['#f1ede4','#9b9a96','#6b6a66','#3b3a38'],acrylic:['#264653','#e76f51','#f4a261','#2a9d8f'],oil:['#3d2b1f','#c9a227','#8c3b2e','#4a6b5d'],pastel:['#fdf0f6','#f7b2d9','#b5d8f7','#c9f0c2'],mixed:['#f4ecd8','#d1495b','#00798c','#edae49']};
 const $=s=>document.querySelector(s);
 const cn=id=>(CLASSES.find(c=>c.id===id)||{}).n||id;
@@ -545,7 +564,7 @@ function renderAll(){
  $('#clsSel').innerHTML=cl.map(c=>`<option value="${esc(c._id)}">${esc(clabel(c))}</option>`).join('');
  $('#planSel').innerHTML=D.plans.map(p=>`<option value="${esc(p._id)}">${esc(p.name)} – $${esc(p.price)}</option>`).join('');
  const has=(sel,v)=>[...$(sel).options].some(o=>o.value===v);if(cv&&has('#clsSel',cv))$('#clsSel').value=cv;if(pv&&has('#planSel',pv))$('#planSel').value=pv;
- $('#plans').innerHTML=D.plans.map(p=>{const n=+p.count||0,per=n>1?'$'+(p.price/n).toFixed(2).replace(/\.00$/,'')+' per class':n===1?'Single class':'';return `<div class="plan ${p.pop?'pop':''}">${p.pop?'<span class="ribbon">Most popular</span>':''}<h3>${esc(p.name)}</h3><p class="pdesc">${esc(p.desc)}</p><div class="amt">$${esc(p.price)}</div>${per?`<span class="per">${per}</span>`:'<span class="per" style="visibility:hidden">-</span>'}<ul>${n?`<li>${n} one-hour class${n===1?'':'es'}</li>`:'<li>One-hour classes</li>'}<li>Small groups of up to 8</li><li>Skilled, friendly teacher</li><li>Request changes and make-ups online</li></ul><div class="acts2"><a class="btn nonadm" href="#register" data-plan="${esc(p._id)}">Enroll Now</a>${API_MODE?'':`<button class="btn sm" data-pay="${esc(p._id)}">Pay now</button>`}${adm()?`<button class="btn sm alt" data-act="planprice" data-id="${esc(p._id)}" data-n="${esc(p.name)}" data-p="${esc(p.price)}">Change fee</button>`:''}</div></div>`}).join('');
+ $('#plans').innerHTML=D.plans.map(p=>{const n=+p.count||0,per=n>1?'$'+(p.price/n).toFixed(2).replace(/\.00$/,'')+' per class':n===1?'Single class':'';return `<div class="plan ${p.pop?'pop':''}">${p.pop?'<span class="ribbon">Most popular</span>':''}<h3>${esc(p.name)}</h3><p class="pdesc">${esc(p.desc)}</p><div class="amt">$${esc(p.price)}</div>${per?`<span class="per">${per}</span>`:'<span class="per" style="visibility:hidden">-</span>'}<ul>${n?`<li>${n} one-hour class${n===1?'':'es'}</li>`:'<li>One-hour classes</li>'}${/one-on-one/i.test(p.name)?'<li>Private, one-on-one attention</li>':'<li>Small groups of up to 8</li>'}<li>Skilled, friendly teacher</li><li>Request changes and make-ups online</li></ul><div class="acts2"><a class="btn nonadm" href="#register" data-plan="${esc(p._id)}">Enroll Now</a>${API_MODE?'':`<button class="btn sm" data-pay="${esc(p._id)}">Pay now</button>`}${adm()?`<button class="btn sm alt" data-act="planprice" data-id="${esc(p._id)}" data-n="${esc(p.name)}" data-p="${esc(p.price)}">Change fee</button>`:''}</div></div>`}).join('');
  document.querySelectorAll('[data-plan]').forEach(a=>a.onclick=()=>{const o=[...$('#planSel').options].find(x=>x.value===a.dataset.plan);if(o)$('#planSel').value=o.value});
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>{const p=D.plans.find(x=>x._id===b.dataset.pay);checkout({kind:'Fees',item:{n:p.name,p:p.price}})});
  drawG();drawShop()}
