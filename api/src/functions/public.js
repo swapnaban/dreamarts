@@ -19,11 +19,20 @@ pub('paintings', 'GET', 'paintings', async () => {
   return { jsonBody: x.recordset };
 });
 pub('artworks', 'GET', 'artworks', async req => {
-  if (!isAdmin(req) && !(await userFromToken(req))) throw fail(401, 'Please log in');   // student gallery: logged-in families and admin only
-  const x = await (await getPool()).request().query(
-    `SELECT w.ArtworkId, w.Title, w.ArtistName, a.Name AS ArtType, w.ImageUrl FROM dbo.StudentArtworks w JOIN dbo.ArtTypes a ON a.ArtTypeId=w.ArtTypeId
-     WHERE w.IsPublished=1 ORDER BY w.CreatedAt DESC`);
+  const admin = isAdmin(req), me = admin ? null : await userFromToken(req);
+  if (!admin && !me) throw fail(401, 'Please log in');   // student gallery: signed-in families (their own children only) and admin
+  const rq = (await getPool()).request();
+  let where = 'w.IsPublished=1';
+  if (me) { rq.input('u', sql.Int, me.UserId); where += ' AND w.StudentId IN (SELECT StudentId FROM dbo.Students WHERE ParentUserId=@u)'; }
+  const x = await rq.query(
+    `SELECT w.ArtworkId, w.Title, w.ArtistName, a.Name AS ArtType, w.ImageUrl, w.StudentId FROM dbo.StudentArtworks w JOIN dbo.ArtTypes a ON a.ArtTypeId=w.ArtTypeId
+     WHERE ${where} ORDER BY w.CreatedAt DESC`);
   return { jsonBody: x.recordset };
+});
+pub('config', 'GET', 'config', async () => {
+  const x = (await (await getPool()).request().query("SELECT SettingValue FROM dbo.Settings WHERE SettingKey='registrationFee'")).recordset[0];
+  const n = x ? Number(x.SettingValue) : NaN;
+  return { jsonBody: { registrationFee: n >= 0 ? n : Number(process.env.REGISTRATION_FEE || 20) } };
 });
 
 // Buy a painting: reserve it and return the Zelle instructions

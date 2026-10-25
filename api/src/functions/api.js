@@ -99,7 +99,15 @@ app.http('adminSessionCreate', { methods: ['POST'], route: 'manage/sessions', au
       .input('a', sql.NVarChar(40), clean(b.ageGroup || 'All ages', 40)).input('c', sql.TinyInt, cap)
       .query('INSERT dbo.Sessions (DayOfWeek, StartTime, EndTime, AgeGroup, Capacity) OUTPUT INSERTED.SessionId VALUES (@d, CAST(@s AS TIME(0)), CAST(@e AS TIME(0)), @a, @c)');
     return { status: 201, jsonBody: { ok: true, sessionId: r.recordset[0].SessionId } };
-  } catch (e) { if (e.number === 2627 || e.number === 2601) throw fail(409, 'A session already starts at that time'); throw e; }
+  } catch (e) {
+    if (e.number === 2627 || e.number === 2601) {            // slot exists: bring it back if it was disabled
+      const u = await (await getPool()).request().input('d', sql.TinyInt, day).input('s', sql.VarChar(5), b.start).input('e', sql.VarChar(5), b.end).input('a', sql.NVarChar(40), clean(b.ageGroup || 'All ages', 40)).input('c', sql.TinyInt, cap)
+        .query('UPDATE dbo.Sessions SET IsActive=1, EndTime=CAST(@e AS TIME(0)), AgeGroup=@a, Capacity=@c WHERE DayOfWeek=@d AND StartTime=CAST(@s AS TIME(0)) AND IsActive=0');
+      if (u.rowsAffected[0]) return { status: 201, jsonBody: { ok: true } };
+      throw fail(409, 'A session already starts at that time');
+    }
+    throw e;
+  }
 }) });
 
 app.http('adminSessionDelete', { methods: ['DELETE'], route: 'manage/sessions/{id}', authLevel: 'anonymous', handler: handler(async req => {
