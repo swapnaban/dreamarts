@@ -18,7 +18,8 @@ pub('paintings', 'GET', 'paintings', async () => {
      FROM dbo.Paintings p JOIN dbo.ArtTypes a ON a.ArtTypeId=p.ArtTypeId ORDER BY p.CreatedAt DESC`);
   return { jsonBody: x.recordset };
 });
-pub('artworks', 'GET', 'artworks', async () => {
+pub('artworks', 'GET', 'artworks', async req => {
+  if (!isAdmin(req) && !(await userFromToken(req))) throw fail(401, 'Please log in');   // student gallery: logged-in families and admin only
   const x = await (await getPool()).request().query(
     `SELECT w.ArtworkId, w.Title, w.ArtistName, a.Name AS ArtType, w.ImageUrl FROM dbo.StudentArtworks w JOIN dbo.ArtTypes a ON a.ArtTypeId=w.ArtTypeId
      WHERE w.IsPublished=1 ORDER BY w.CreatedAt DESC`);

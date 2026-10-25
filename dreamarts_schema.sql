@@ -163,7 +163,6 @@ INSERT dbo.ArtTypes (Name, Description) VALUES
  ('Oil Painting','Rich blending, layering and texture on canvas.'),
  ('Acrylic Painting','Bold colors on canvas, from first brushstroke.'),
  ('Pastel & Crayon','Soft, vibrant color for younger artists.'),
- ('Digital Art','Drawing and animation basics on tablets.'),
  ('Mixed Media & Collage','Paper, paint and found materials combined.');
 
 INSERT dbo.Plans (Name, Price, Description, ClassCount) VALUES
