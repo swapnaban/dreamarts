@@ -74,8 +74,14 @@ pub('imageGet', 'GET', 'images/{id}', async req => {
   return { status: 200, headers: { 'Content-Type': x.recordset[0].ContentType, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' }, body: x.recordset[0].Data };
 });
 pub('imageUpload', 'POST', 'images', async req => {
-  if (!isAdmin(req) && !(await userFromToken(req))) throw fail(401, 'Please log in');   // admins and logged-in parents only
+  const known = isAdmin(req) || await userFromToken(req);
   const b = await req.json();
+  if (!known) {                                   // visitors may attach one small reference photo to a custom-painting request, with tight limits
+    if (b.purpose !== 'reference') throw fail(401, 'Please sign in');
+    if (String(b.data || '').length > 1.4 * 1024 * 1024) throw fail(400, 'Please choose a photo under 1 MB');
+    const n = (await (await getPool()).request().query("SELECT COUNT(*) AS n FROM dbo.Images WHERE CreatedAt > DATEADD(MINUTE,-10,SYSUTCDATETIME())")).recordset[0].n;
+    if (n >= 30) throw fail(429, 'Too many uploads right now. Please try again in a few minutes, or email us the photo.');
+  }
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(b.contentType)) throw fail(400, 'Only JPEG, PNG or WebP images');
   const data = Buffer.from(String(b.data || ''), 'base64');
   if (!data.length || data.length > 1.5 * 1024 * 1024) throw fail(400, 'Image must be under 1.5 MB');
