@@ -5,7 +5,7 @@ app.http('health', { methods: ['GET'], route: 'health', authLevel: 'anonymous', 
   const has = k => !!process.env[k];
   const out = { settings: { SQL_CONNECTION_STRING: has('SQL_CONNECTION_STRING'), AUTH_SECRET: has('AUTH_SECRET'), ACS_CONNECTION_STRING: has('ACS_CONNECTION_STRING'), EMAIL_SENDER: has('EMAIL_SENDER') } };
   try {
-    const r = await (await getPool()).request().query("SELECT (SELECT COUNT(*) FROM dbo.Sessions) AS sessions, OBJECT_ID('dbo.vw_SessionCapacity') AS viewId, OBJECT_ID('dbo.LoginCodes') AS loginCodesId");
+    const r = await (await getPool()).request().query("SELECT (SELECT COUNT(*) FROM dbo.Sessions) AS sessions, OBJECT_ID('dbo.vw_SessionCapacity') AS viewId, OBJECT_ID('dbo.LoginCodes') AS loginCodesId, OBJECT_ID('dbo.Settings') AS settingsId, OBJECT_ID('dbo.Images') AS imagesId, OBJECT_ID('dbo.ChangeRequests') AS requestsId");
     out.db = { ok: true, ...r.recordset[0] };
   } catch (e) { out.db = { ok: false, code: e.code || null, number: e.number || (e.originalError && e.originalError.number) || null }; }
   return { jsonBody: out };

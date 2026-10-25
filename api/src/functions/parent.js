@@ -14,7 +14,7 @@ par('me', 'GET', 'me', async req => {
     q().query(`SELECT e.EnrollmentId, e.SessionId, st.FullName AS Student, e.Status, s.DayOfWeek, CONVERT(VARCHAR(5),s.StartTime,108) AS StartTime,
                       CONVERT(VARCHAR(5),s.EndTime,108) AS EndTime, a.Name AS ArtType, p.Name AS PlanName
                FROM dbo.Enrollments e JOIN dbo.Students st ON st.StudentId=e.StudentId JOIN dbo.Sessions s ON s.SessionId=e.SessionId
-               JOIN dbo.ArtTypes a ON a.ArtTypeId=e.ArtTypeId JOIN dbo.Plans p ON p.PlanId=e.PlanId
+               LEFT JOIN dbo.ArtTypes a ON a.ArtTypeId=e.ArtTypeId JOIN dbo.Plans p ON p.PlanId=e.PlanId
                WHERE st.ParentUserId=@u ORDER BY e.EnrolledAt DESC`),
     q().query('SELECT PaymentId, Description, Amount, Method, Status, CreatedAt, PaidAt FROM dbo.Payments WHERE UserId=@u ORDER BY CreatedAt DESC'),
     q().query(`SELECT c.RequestId, c.RequestType, c.Status, c.Message, c.AdminNote, c.CreatedAt, CONVERT(VARCHAR(10),c.ClassDate,23) AS ClassDate
