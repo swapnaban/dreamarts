@@ -40,7 +40,7 @@ async function sendCode(to, code) {
   const client = new EmailClient(process.env.ACS_CONNECTION_STRING);
   await client.beginSend({
     senderAddress: process.env.EMAIL_SENDER,
-    content: { subject: 'Your Dream Arts login code', plainText: `Your Dream Arts login code is ${code}\n\nIt expires in 10 minutes. If you did not ask for it, you can ignore this email.` },
+    content: { subject: 'Your Dream Arts sign-in code', plainText: `Your Dream Arts sign-in code is ${code}\n\nIt expires in 10 minutes. If you did not ask for it, you can ignore this email.` },
     recipients: { to: [{ address: to }] }
   });
 }

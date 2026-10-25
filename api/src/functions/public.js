@@ -29,12 +29,6 @@ pub('artworks', 'GET', 'artworks', async req => {
      WHERE ${where} ORDER BY w.CreatedAt DESC`);
   return { jsonBody: x.recordset };
 });
-pub('config', 'GET', 'config', async () => {
-  const x = (await (await getPool()).request().query("SELECT SettingValue FROM dbo.Settings WHERE SettingKey='registrationFee'")).recordset[0];
-  const n = x ? Number(x.SettingValue) : NaN;
-  return { jsonBody: { registrationFee: n >= 0 ? n : Number(process.env.REGISTRATION_FEE || 20) } };
-});
-
 // Buy a painting: reserve it and return the Zelle instructions
 pub('purchase', 'POST', 'purchase', async req => {
   const b = await req.json();
