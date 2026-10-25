@@ -7,12 +7,13 @@ const email = v => { v = clean(v, 256).toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^
 
 // ---------- public ----------
 app.http('sessions', { methods: ['GET'], route: 'sessions', authLevel: 'anonymous', handler: handler(async () => {
+  // same counting as the admin schedule (Pending + Active bookings hold a seat) so both pages always agree
   const r = await (await getPool()).request().query(`
-    SELECT SessionId, DayOfWeek, CONVERT(VARCHAR(5),StartTime,108) AS StartTime, CONVERT(VARCHAR(5),EndTime,108) AS EndTime,
-           AgeGroup, Capacity, Enrolled, SeatsLeft
-    FROM dbo.vw_SessionCapacity v WHERE EXISTS (SELECT 1 FROM dbo.Sessions s WHERE s.SessionId=v.SessionId AND s.IsActive=1)
-    ORDER BY DayOfWeek, StartTime`);
-  return { jsonBody: r.recordset };
+    SELECT s.SessionId, s.DayOfWeek, CONVERT(VARCHAR(5),s.StartTime,108) AS StartTime, CONVERT(VARCHAR(5),s.EndTime,108) AS EndTime,
+           s.AgeGroup, s.Capacity,
+           (SELECT COUNT(*) FROM dbo.Enrollments e WHERE e.SessionId=s.SessionId AND e.Status IN ('Pending','Active')) AS Enrolled
+    FROM dbo.Sessions s WHERE s.IsActive=1 ORDER BY s.DayOfWeek, s.StartTime`);
+  return { jsonBody: r.recordset.map(x => ({ ...x, SeatsLeft: x.Capacity - x.Enrolled })), headers: { 'Cache-Control': 'no-store' } };
 }) });
 
 app.http('arttypes', { methods: ['GET'], route: 'arttypes', authLevel: 'anonymous', handler: handler(async () => {
