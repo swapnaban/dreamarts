@@ -33,5 +33,4 @@ jobs:
           app_location: "web"
           api_location: "api"
           output_location: ""
-          skip_deploy_on_missing_secrets: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
