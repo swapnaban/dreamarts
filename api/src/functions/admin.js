@@ -63,7 +63,9 @@ r('adminPaymentUpdate', 'PATCH', 'manage/payments/{id}', async req => {
     `UPDATE dbo.Payments SET Status=@s, PaidAt=CASE WHEN @s='Paid' THEN SYSUTCDATETIME() ELSE PaidAt END WHERE PaymentId=@id;
      UPDATE p SET p.Status = CASE WHEN @s='Paid' THEN 'Sold' ELSE 'Available' END
      FROM dbo.Paintings p JOIN dbo.Payments y ON y.PaintingId=p.PaintingId
-     WHERE y.PaymentId=@id AND @s IN ('Paid','Failed','Refunded')`);
+     WHERE y.PaymentId=@id AND @s IN ('Paid','Failed','Refunded');
+     UPDATE p SET p.Status='Reserved' FROM dbo.Paintings p JOIN dbo.Payments y ON y.PaintingId=p.PaintingId
+     WHERE y.PaymentId=@id AND @s='Pending' AND p.Status='Available'`);
   return ok;
 });
 
