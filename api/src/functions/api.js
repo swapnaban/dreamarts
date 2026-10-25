@@ -36,8 +36,8 @@ app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymo
     if (ex.recordset.length) throw fail(401, 'login_required');   // inactive = still awaiting approval, may add another child
   }
   const student = clean(b.student, 120), parent = clean(b.parent, 160), phone = clean(b.phone, 30);
-  const age = Number(b.age), sessionId = Number(b.sessionId), artTypeId = Number(b.artTypeId), planId = Number(b.planId);
-  if (!student || !parent || !(age >= 3 && age <= 18) || !sessionId || !artTypeId || !planId) throw fail(400, 'Missing or invalid fields');
+  const age = Number(b.age), sessionId = Number(b.sessionId), artTypeId = Number(b.artTypeId) || null, planId = Number(b.planId);
+  if (!student || !parent || !(age >= 3 && age <= 18) || !sessionId || !planId) throw fail(400, 'Missing or invalid fields');
   const level = ['Beginner', 'Some experience', 'Advanced'].includes(b.level) ? b.level : 'Beginner';
 
   const tx = new sql.Transaction(await getPool());
@@ -83,7 +83,7 @@ app.http('adminEnrollments', { methods: ['GET'], route: 'admin/enrollments', aut
            s.DayOfWeek, CONVERT(VARCHAR(5),s.StartTime,108) AS StartTime, CONVERT(VARCHAR(5),s.EndTime,108) AS EndTime,
            a.Name AS ArtType, p.Name AS PlanName
     FROM dbo.Enrollments e JOIN dbo.Students st ON st.StudentId=e.StudentId JOIN dbo.Users u ON u.UserId=st.ParentUserId
-    JOIN dbo.Sessions s ON s.SessionId=e.SessionId JOIN dbo.ArtTypes a ON a.ArtTypeId=e.ArtTypeId JOIN dbo.Plans p ON p.PlanId=e.PlanId
+    JOIN dbo.Sessions s ON s.SessionId=e.SessionId LEFT JOIN dbo.ArtTypes a ON a.ArtTypeId=e.ArtTypeId JOIN dbo.Plans p ON p.PlanId=e.PlanId
     ORDER BY e.EnrolledAt DESC`);
   return { jsonBody: r.recordset };
 }) });

@@ -63,3 +63,7 @@ databases pause when idle: the first request after a quiet period can fail while
 Set the app setting ADMIN_EMAILS to your sign-in name (comma-separate several). To find it: sign in at /.auth/login/aad (or /.auth/login/github),
 then open /.auth/me and copy the "userDetails" value. Example: ADMIN_EMAILS = you@outlook.com
 (the old method, inviting the role "admin" in Role management, still works too).
+
+## Version 3
+Run dreamarts_v3.sql after dreamarts_v2.sql (art type optional at registration; adds a 5:30 PM class Mon-Fri).
+Admin now shows an "Admin logout" link (menu and Admin page). Admin errors now show the database message to help diagnose (e.g. missing tables).

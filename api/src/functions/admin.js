@@ -5,7 +5,11 @@ const REG_FEE = Number(process.env.REGISTRATION_FEE || 20);
 const clean = (v, m) => String(v ?? '').trim().slice(0, m);
 const GUID = /^[0-9a-fA-F-]{36}$/;
 const imgUrl = id => (id && GUID.test(id) ? `/api/images/${id}` : null);
-const r = (name, method, route, fn) => app.http(name, { methods: [method], route, authLevel: 'anonymous', handler: handler(async (req, ctx) => { requireAdmin(req); return fn(req, ctx); }) });
+const r = (name, method, route, fn) => app.http(name, { methods: [method], route, authLevel: 'anonymous', handler: handler(async (req, ctx) => {
+    requireAdmin(req);
+    try { return await fn(req, ctx); }
+    catch (e) { if (e.status) throw e; ctx.error(e); throw fail(500, 'Database error: ' + ((e.originalError && e.originalError.message) || e.message)); } // admin-only, so the detail is safe to show
+  }) });
 const ok = { jsonBody: { ok: true } };
 
 // ----- enrollments: accept / decline / change time -----
