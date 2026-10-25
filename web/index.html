@@ -377,7 +377,8 @@ function renderAcct(){const b=$('#acctBox');if(!b)return;
  const f1=$('#lf1'),f2=$('#lf2');
  if(f1)f1.onsubmit=async e=>{e.preventDefault();acctEmail=new FormData(f1).get('email');try{await J('/auth/request',{method:'POST',body:{email:acctEmail}});acctStep='code';renderAcct();toast('If that email is approved, a code is on its way.')}catch(x){toast(x.message)}};
  if(f2){$('#lback').onclick=()=>{acctStep='email';renderAcct()};f2.onsubmit=async e=>{e.preventDefault();try{const r=await J('/auth/verify',{method:'POST',body:{email:acctEmail,code:new FormData(f2).get('code')}});setTok(r.token);await loadMe();toast('Welcome, '+r.name+'!')}catch(x){toast(x.message)}}}}
-async function adminApi(){let en,pay,rq,cr,st;try{[en,pay,rq,cr,st]=await Promise.all([J('/admin/enrollments'),J('/admin/payments'),J('/admin/requests'),J('/admin/custom-requests'),J('/admin/settings')])}catch(x){return}
+async function adminApi(){let en,pay,rq,cr,st;const tj=async(u,d)=>{try{return await J(u)}catch(x){if(x.status===401||x.status===403)throw x;console.error(u,x.message);return d}}; // a missing table must not hide the whole Admin area
+ try{[en,pay,rq,cr,st]=await Promise.all([tj('/admin/enrollments',[]),tj('/admin/payments',[]),tj('/admin/requests',[]),tj('/admin/custom-requests',[]),tj('/admin/settings',{})])}catch(x){return}
  $('#adminLink').style.display='';
  const T=(h,r)=>`<div class="card tablewrap" style="margin-bottom:18px"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.join('')||'<tr><td colspan="9">None yet.</td></tr>'}</table></div>`;
  const B=(a,id,t,x='')=>`<button class="btn sm alt" data-act="${a}" data-id="${esc(id)}" ${x}>${t}</button>`;
