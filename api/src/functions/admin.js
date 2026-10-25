@@ -1,8 +1,6 @@
 const { app } = require('@azure/functions');
 const { sql, getPool, fail, handler } = require('../db');
 const { sendMail, requireAdmin } = require('../auth');
-const REG_FEE_DEFAULT = Number(process.env.REGISTRATION_FEE || 20);
-async function regFee(q) { const x = (await q().query("SELECT SettingValue FROM dbo.Settings WHERE SettingKey='registrationFee'")).recordset[0]; const n = x ? Number(x.SettingValue) : NaN; return n >= 0 ? n : REG_FEE_DEFAULT; }
 const clean = (v, m) => String(v ?? '').trim().slice(0, m);
 const GUID = /^[0-9a-fA-F-]{36}$/;
 const imgUrl = id => (id && GUID.test(id) ? `/api/images/${id}` : null);
@@ -41,10 +39,9 @@ r('adminEnrollmentUpdate', 'PATCH', 'manage/enrollments/{id}', async req => {
         await q().input('u', sql.Int, e.ParentUserId).query('UPDATE dbo.Users SET IsActive=1 WHERE UserId=@u');
         const has = (await q().input('id', sql.Int, id).query('SELECT COUNT(*) AS n FROM dbo.Payments WHERE EnrollmentId=@id')).recordset[0].n;
         if (!has) {
-          const prior = (await q().input('u', sql.Int, e.ParentUserId).query("SELECT COUNT(*) AS n FROM dbo.Payments WHERE UserId=@u AND PaymentType='Fees'")).recordset[0].n;
           const p = (await q().input('p', sql.SmallInt, e.PlanId).query('SELECT Name, Price FROM dbo.Plans WHERE PlanId=@p')).recordset[0];
           await q().input('u', sql.Int, e.ParentUserId).input('n', sql.NVarChar(120), e.FirstName).input('e', sql.NVarChar(256), e.Email).input('en', sql.Int, id)
-            .input('d', sql.NVarChar(200), prior ? p.Name : `${p.Name} + registration fee`).input('am', sql.Decimal(10, 2), Number(p.Price) + (prior ? 0 : await regFee(q)))
+            .input('d', sql.NVarChar(200), p.Name).input('am', sql.Decimal(10, 2), Number(p.Price))
             .query("INSERT dbo.Payments (UserId, PayerName, PayerEmail, PaymentType, EnrollmentId, Description, Amount, Method) VALUES (@u,@n,@e,'Fees',@en,@d,@am,'Zelle')");
         }
         mail = [e.Email, 'Your Dream Arts enrollment is confirmed', `Hi ${e.FirstName},\n\nGood news! The class time for ${e.FullName} has been approved. You can now log in with this email address on the Dream Arts website to see the schedule and the payment details.\n\n- Dream Arts`];
@@ -222,7 +219,6 @@ r('adminSettingsPut', 'PUT', 'manage/settings', async req => {
   const b = await req.json(), pool = await getPool();
   const items = [];
   if (b.zellePhone !== undefined) items.push(['zellePhone', clean(b.zellePhone, 30)]);
-  if (b.registrationFee !== undefined) { if (!(Number(b.registrationFee) >= 0)) throw fail(400, 'Bad fee'); items.push(['registrationFee', String(Number(b.registrationFee))]); }
   if (b.zelleQrImageId !== undefined) { if (b.zelleQrImageId && !GUID.test(b.zelleQrImageId)) throw fail(400, 'Bad image'); items.push(['zelleQrImageId', clean(b.zelleQrImageId, 40)]); }
   for (const [k, v] of items) await pool.request().input('k', sql.NVarChar(50), k).input('v', sql.NVarChar(500), v)
     .query('MERGE dbo.Settings AS t USING (SELECT @k AS k) AS s ON t.SettingKey=s.k WHEN MATCHED THEN UPDATE SET SettingValue=@v WHEN NOT MATCHED THEN INSERT (SettingKey, SettingValue) VALUES (@k,@v);');

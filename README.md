@@ -50,7 +50,7 @@ a session lasts 7 days; an email that already has an account must log in before 
 How it works now
 * A new registration is "Pending" and holds a seat. The parent account stays DISABLED, so no login code is sent.
 * Admin > "Waiting for approval": pick/confirm the time and click "Accept & enable login". That activates the enrollment and the parent
-  login, creates the first payment (plan + $20 registration fee for the first child), and emails the parent. "Decline" emails them too.
+  login, creates the first payment (plan), and emails the parent. "Decline" emails them too.
 * Parents (My account) see only their own schedule, payments, requests; they can pay by Zelle (QR + phone + reference DA-<id>),
   press "I have sent the payment", and request a schedule change / additional class / missed-class make-up.
 * Visitors can buy a painting without an account: it is Reserved, they get the Zelle instructions, and Admin > Payments "Mark paid" sets it Sold.

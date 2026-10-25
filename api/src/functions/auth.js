@@ -12,7 +12,8 @@ app.http('authRequest', { methods: ['POST'], route: 'auth/request', authLevel: '
   const u = await pool.request().input('e', sql.NVarChar(256), e).query('SELECT 1 AS x FROM dbo.Users WHERE Email=@e AND IsActive=1');
   if (u.recordset.length) {
     const n = await pool.request().input('e', sql.NVarChar(256), e).query('SELECT COUNT(*) AS n FROM dbo.LoginCodes WHERE Email=@e AND CreatedAt > DATEADD(HOUR,-1,SYSUTCDATETIME())');
-    if (n.recordset[0].n < 5) {                       // at most 5 codes per email per hour
+    const recent = await pool.request().input('e', sql.NVarChar(256), e).query('SELECT COUNT(*) AS n FROM dbo.LoginCodes WHERE Email=@e AND CreatedAt > DATEADD(SECOND,-60,SYSUTCDATETIME())');
+    if (recent.recordset[0].n === 0 && n.recordset[0].n < 5) {   // one code per 60 seconds and at most 5 per hour, only ever sent to the address that asked (and only if it is an approved account)
       const code = code6();
       await pool.request().input('e', sql.NVarChar(256), e).input('h', sql.Char(64), hmac(`${e}:${code}`))
         .query('INSERT dbo.LoginCodes (Email, CodeHash, ExpiresAt) VALUES (@e, @h, DATEADD(MINUTE,10,SYSUTCDATETIME()))');

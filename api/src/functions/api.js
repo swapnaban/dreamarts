@@ -1,7 +1,6 @@
 const { app } = require('@azure/functions');
 const { sql, getPool, fail, handler } = require('../db');
 const { userFromToken, requireAdmin } = require('../auth');
-const REG_FEE = Number(process.env.REGISTRATION_FEE || 20);
 const clean = (v, max) => String(v ?? '').trim().slice(0, max);
 const email = v => { v = clean(v, 256).toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw fail(400, 'Invalid email'); return v; };
 
