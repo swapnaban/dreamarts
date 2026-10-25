@@ -378,7 +378,7 @@ function renderAcct(){const b=$('#acctBox');if(!b)return;
  if(f1)f1.onsubmit=async e=>{e.preventDefault();acctEmail=new FormData(f1).get('email');try{await J('/auth/request',{method:'POST',body:{email:acctEmail}});acctStep='code';renderAcct();toast('If that email is approved, a code is on its way.')}catch(x){toast(x.message)}};
  if(f2){$('#lback').onclick=()=>{acctStep='email';renderAcct()};f2.onsubmit=async e=>{e.preventDefault();try{const r=await J('/auth/verify',{method:'POST',body:{email:acctEmail,code:new FormData(f2).get('code')}});setTok(r.token);await loadMe();toast('Welcome, '+r.name+'!')}catch(x){toast(x.message)}}}}
 async function adminApi(){let en,pay,rq,cr,st;const tj=async(u,d)=>{try{return await J(u)}catch(x){if(x.status===401||x.status===403)throw x;console.error(u,x.message);return d}}; // a missing table must not hide the whole Admin area
- try{[en,pay,rq,cr,st]=await Promise.all([tj('/admin/enrollments',[]),tj('/admin/payments',[]),tj('/admin/requests',[]),tj('/admin/custom-requests',[]),tj('/admin/settings',{})])}catch(x){return}
+ try{[en,pay,rq,cr,st]=await Promise.all([tj('/manage/enrollments',[]),tj('/manage/payments',[]),tj('/manage/requests',[]),tj('/manage/custom-requests',[]),tj('/manage/settings',{})])}catch(x){return}
  $('#adminLink').style.display='';$('#admOut').style.display='';
  const T=(h,r)=>`<div class="card tablewrap" style="margin-bottom:18px"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.join('')||'<tr><td colspan="9">None yet.</td></tr>'}</table></div>`;
  const B=(a,id,t,x='')=>`<button class="btn sm alt" data-act="${a}" data-id="${esc(id)}" ${x}>${t}</button>`;
@@ -403,22 +403,22 @@ async function adminApi(){let en,pay,rq,cr,st;const tj=async(u,d)=>{try{return a
  const price=()=>{const v=prompt('New price ($)');return v!==null&&v!==''&&!isNaN(+v)?+v:null};
  const note=id=>(document.querySelector(`[data-note="${id}"]`)||{}).value||'';
  $('#admBox').onclick=e=>{const b=e.target.closest('[data-act]');if(!b)return;const id=b.dataset.id,a=b.dataset.act;
-  if(a==='accept'){const se=document.querySelector(`[data-sess="${id}"]`).value;run(()=>J('/admin/enrollments/'+id,{method:'PATCH',body:{status:'Active',sessionId:+se}}))}
-  else if(a==='decline'){if(confirm('Decline this enrollment?'))run(()=>J('/admin/enrollments/'+id,{method:'PATCH',body:{status:'Declined'}}))}
-  else if(a==='rqok'||a==='rqno')run(()=>J('/admin/requests/'+id,{method:'PATCH',body:{status:a==='rqok'?'Approved':'Declined',adminNote:note(id)}}))
-  else if(a==='paid')run(()=>J('/admin/payments/'+id,{method:'PATCH',body:{status:'Paid'}}))
-  else if(a==='failp')run(()=>J('/admin/payments/'+id,{method:'PATCH',body:{status:'Failed'}}))
-  else if(a==='delcls'){if(confirm('Delete this class slot?'))run(()=>J('/admin/sessions/'+id,{method:'DELETE'}))}
-  else if(a==='pprice'){const v=price();if(v!==null)run(()=>J('/admin/paintings/'+id,{method:'PATCH',body:{price:v}}))}
-  else if(a==='pstat')run(()=>J('/admin/paintings/'+id,{method:'PATCH',body:{status:b.dataset.s==='Available'?'Sold':'Available'}}))
-  else if(a==='pdel'){if(confirm('Delete this painting?'))run(()=>J('/admin/paintings/'+id,{method:'DELETE'}))}
-  else if(a==='adel'){if(confirm('Delete this artwork?'))run(()=>J('/admin/artworks/'+id,{method:'DELETE'}))}};
- $('#admBox').onchange=e=>{const t=e.target.dataset;if(t.st)run(()=>J('/admin/enrollments/'+t.st,{method:'PATCH',body:{status:e.target.value}}));else if(t.cr)run(()=>J('/admin/custom-requests/'+t.cr,{method:'PATCH',body:{status:e.target.value}}))};
+  if(a==='accept'){const se=document.querySelector(`[data-sess="${id}"]`).value;run(()=>J('/manage/enrollments/'+id,{method:'PATCH',body:{status:'Active',sessionId:+se}}))}
+  else if(a==='decline'){if(confirm('Decline this enrollment?'))run(()=>J('/manage/enrollments/'+id,{method:'PATCH',body:{status:'Declined'}}))}
+  else if(a==='rqok'||a==='rqno')run(()=>J('/manage/requests/'+id,{method:'PATCH',body:{status:a==='rqok'?'Approved':'Declined',adminNote:note(id)}}))
+  else if(a==='paid')run(()=>J('/manage/payments/'+id,{method:'PATCH',body:{status:'Paid'}}))
+  else if(a==='failp')run(()=>J('/manage/payments/'+id,{method:'PATCH',body:{status:'Failed'}}))
+  else if(a==='delcls'){if(confirm('Delete this class slot?'))run(()=>J('/manage/sessions/'+id,{method:'DELETE'}))}
+  else if(a==='pprice'){const v=price();if(v!==null)run(()=>J('/manage/paintings/'+id,{method:'PATCH',body:{price:v}}))}
+  else if(a==='pstat')run(()=>J('/manage/paintings/'+id,{method:'PATCH',body:{status:b.dataset.s==='Available'?'Sold':'Available'}}))
+  else if(a==='pdel'){if(confirm('Delete this painting?'))run(()=>J('/manage/paintings/'+id,{method:'DELETE'}))}
+  else if(a==='adel'){if(confirm('Delete this artwork?'))run(()=>J('/manage/artworks/'+id,{method:'DELETE'}))}};
+ $('#admBox').onchange=e=>{const t=e.target.dataset;if(t.st)run(()=>J('/manage/enrollments/'+t.st,{method:'PATCH',body:{status:e.target.value}}));else if(t.cr)run(()=>J('/manage/custom-requests/'+t.cr,{method:'PATCH',body:{status:e.target.value}}))};
  $('#admBox').onsubmit=e=>{e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));
-  if(f.id==='addCls')run(()=>J('/admin/sessions',{method:'POST',body:{dayOfWeek:+d.day,start:d.start,end:d.end,ageGroup:d.ages,capacity:+d.cap}}));
-  else if(f.id==='addPnt')run(async()=>{const imageId=await upImg(f.img.files[0]);await J('/admin/paintings',{method:'POST',body:{title:d.title,artist:d.artist,artTypeId:+d.at,size:d.size,price:+d.price,imageId}})});
-  else if(f.id==='addArt')run(async()=>{const imageId=await upImg(f.img.files[0]);await J('/admin/artworks',{method:'POST',body:{title:d.title,artist:d.artist,artTypeId:+d.at,imageId}})});
-  else if(f.id==='zf')run(async()=>{const body={zellePhone:d.phone};if(f.qr.files[0])body.zelleQrImageId=await upImg(f.qr.files[0]);await J('/admin/settings',{method:'PUT',body});toast('Zelle settings saved')})};}
+  if(f.id==='addCls')run(()=>J('/manage/sessions',{method:'POST',body:{dayOfWeek:+d.day,start:d.start,end:d.end,ageGroup:d.ages,capacity:+d.cap}}));
+  else if(f.id==='addPnt')run(async()=>{const imageId=await upImg(f.img.files[0]);await J('/manage/paintings',{method:'POST',body:{title:d.title,artist:d.artist,artTypeId:+d.at,size:d.size,price:+d.price,imageId}})});
+  else if(f.id==='addArt')run(async()=>{const imageId=await upImg(f.img.files[0]);await J('/manage/artworks',{method:'POST',body:{title:d.title,artist:d.artist,artTypeId:+d.at,imageId}})});
+  else if(f.id==='zf')run(async()=>{const body={zellePhone:d.phone};if(f.qr.files[0])body.zelleQrImageId=await upImg(f.qr.files[0]);await J('/manage/settings',{method:'PUT',body});toast('Zelle settings saved')})};}
 
 // Admin
 const sel=(n,o)=>`<select name="${n}">${o.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}</select>`;
