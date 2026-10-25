@@ -21,7 +21,7 @@ app.http('arttypes', { methods: ['GET'], route: 'arttypes', authLevel: 'anonymou
 }) });
 
 app.http('plans', { methods: ['GET'], route: 'plans', authLevel: 'anonymous', handler: handler(async () => {
-  const r = await (await getPool()).request().query('SELECT PlanId, Name, Price, Description FROM dbo.Plans WHERE IsActive=1 ORDER BY Price');
+  const r = await (await getPool()).request().query('SELECT PlanId, Name, Price, Description, ClassCount FROM dbo.Plans WHERE IsActive=1 ORDER BY Price');
   return { jsonBody: r.recordset };
 }) });
 

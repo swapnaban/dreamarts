@@ -1,6 +1,18 @@
 {
   "routes": [
     {
+      "route": "/",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
       "route": "/api/manage/*",
       "allowedRoles": [
         "authenticated"
