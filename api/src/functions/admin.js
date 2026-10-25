@@ -126,8 +126,15 @@ r('adminSessionUpdate', 'PATCH', 'manage/sessions/{id}', async req => {
   const b = await req.json(), rq = (await getPool()).request().input('id', sql.Int, Number(req.params.id)), sets = [];
   if (b.isActive !== undefined) { rq.input('a', sql.Bit, b.isActive ? 1 : 0); sets.push('IsActive=@a'); }
   if (b.capacity !== undefined) { const c = Number(b.capacity); if (!(c >= 1 && c <= 50)) throw fail(400, 'Seats must be 1-50'); rq.input('c', sql.TinyInt, c); sets.push('Capacity=@c'); }
+  if (b.dayOfWeek !== undefined) { const d = Number(b.dayOfWeek); if (!(d >= 1 && d <= 6)) throw fail(400, 'Sunday is closed'); rq.input('d', sql.TinyInt, d); sets.push('DayOfWeek=@d'); }
+  if (b.start !== undefined || b.end !== undefined) {
+    if (!/^\d\d:\d\d$/.test(b.start) || !/^\d\d:\d\d$/.test(b.end) || b.end <= b.start) throw fail(400, 'Check the start and end time');
+    rq.input('st', sql.VarChar(5), b.start).input('en', sql.VarChar(5), b.end); sets.push('StartTime=CAST(@st AS TIME(0))', 'EndTime=CAST(@en AS TIME(0))');
+  }
+  if (b.ageGroup !== undefined) { rq.input('ag', sql.NVarChar(40), clean(b.ageGroup || 'All ages', 40)); sets.push('AgeGroup=@ag'); }
   if (!sets.length) throw fail(400, 'Nothing to update');
-  await rq.query(`UPDATE dbo.Sessions SET ${sets.join(', ')} WHERE SessionId=@id`);
+  try { await rq.query(`UPDATE dbo.Sessions SET ${sets.join(', ')} WHERE SessionId=@id`); }
+  catch (e) { if (e.number === 2627 || e.number === 2601) throw fail(409, 'Another slot already starts at that time'); throw e; }
   return ok;
 });
 

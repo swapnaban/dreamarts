@@ -111,13 +111,18 @@ app.http('adminSessionCreate', { methods: ['POST'], route: 'manage/sessions', au
 
 app.http('adminSessionDelete', { methods: ['DELETE'], route: 'manage/sessions/{id}', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
-  await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).query('UPDATE dbo.Sessions SET IsActive=0 WHERE SessionId=@id'); // soft delete keeps enrollment history
+  const id = Number(req.params.id), rq = (await getPool()).request().input('id', sql.Int, id);
+  if (req.query.get('hard') === '1') {          // real delete: only possible when the slot never had bookings
+    try { await rq.query('DELETE dbo.Sessions WHERE SessionId=@id'); }
+    catch (e) { if (e.number === 547) throw fail(409, 'This slot has bookings or requests, so it cannot be deleted. Disable it instead.'); throw e; }
+  } else await rq.query('UPDATE dbo.Sessions SET IsActive=0 WHERE SessionId=@id'); // soft delete keeps enrollment history
   return { jsonBody: { ok: true } };
 }) });
 
 app.http('adminPayments', { methods: ['GET'], route: 'manage/payments', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
-  const r = await (await getPool()).request().query('SELECT TOP 200 PaymentId, PayerName, PayerEmail, PaymentType, Description, Amount, Method, Status, CreatedAt, PaidAt FROM dbo.Payments ORDER BY CreatedAt DESC');
+  const r = await (await getPool()).request().query(`SELECT TOP 500 p.PaymentId, p.PayerName, p.PayerEmail, p.PaymentType, p.Description, p.Amount, p.Method, p.Status, p.CreatedAt, p.PaidAt, st.FullName AS Student
+     FROM dbo.Payments p LEFT JOIN dbo.Enrollments e ON e.EnrollmentId=p.EnrollmentId LEFT JOIN dbo.Students st ON st.StudentId=e.StudentId ORDER BY p.CreatedAt DESC`);
   return { jsonBody: r.recordset };
 }) });
 
