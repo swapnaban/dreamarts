@@ -1,7 +1,8 @@
 const { app } = require('@azure/functions');
 const { sql, getPool, fail, handler } = require('../db');
 const { sendMail, requireAdmin } = require('../auth');
-const REG_FEE = Number(process.env.REGISTRATION_FEE || 20);
+const REG_FEE_DEFAULT = Number(process.env.REGISTRATION_FEE || 20);
+async function regFee(q) { const x = (await q().query("SELECT SettingValue FROM dbo.Settings WHERE SettingKey='registrationFee'")).recordset[0]; const n = x ? Number(x.SettingValue) : NaN; return n >= 0 ? n : REG_FEE_DEFAULT; }
 const clean = (v, m) => String(v ?? '').trim().slice(0, m);
 const GUID = /^[0-9a-fA-F-]{36}$/;
 const imgUrl = id => (id && GUID.test(id) ? `/api/images/${id}` : null);
@@ -43,7 +44,7 @@ r('adminEnrollmentUpdate', 'PATCH', 'manage/enrollments/{id}', async req => {
           const prior = (await q().input('u', sql.Int, e.ParentUserId).query("SELECT COUNT(*) AS n FROM dbo.Payments WHERE UserId=@u AND PaymentType='Fees'")).recordset[0].n;
           const p = (await q().input('p', sql.SmallInt, e.PlanId).query('SELECT Name, Price FROM dbo.Plans WHERE PlanId=@p')).recordset[0];
           await q().input('u', sql.Int, e.ParentUserId).input('n', sql.NVarChar(120), e.FirstName).input('e', sql.NVarChar(256), e.Email).input('en', sql.Int, id)
-            .input('d', sql.NVarChar(200), prior ? p.Name : `${p.Name} + registration fee`).input('am', sql.Decimal(10, 2), Number(p.Price) + (prior ? 0 : REG_FEE))
+            .input('d', sql.NVarChar(200), prior ? p.Name : `${p.Name} + registration fee`).input('am', sql.Decimal(10, 2), Number(p.Price) + (prior ? 0 : await regFee(q)))
             .query("INSERT dbo.Payments (UserId, PayerName, PayerEmail, PaymentType, EnrollmentId, Description, Amount, Method) VALUES (@u,@n,@e,'Fees',@en,@d,@am,'Zelle')");
         }
         mail = [e.Email, 'Your Dream Arts enrollment is confirmed', `Hi ${e.FirstName},\n\nGood news! The class time for ${e.FullName} has been approved. You can now log in with this email address on the Dream Arts website to see the schedule and the payment details.\n\n- Dream Arts`];
@@ -72,7 +73,7 @@ r('adminPaymentUpdate', 'PATCH', 'manage/payments/{id}', async req => {
 // ----- parent requests -----
 r('adminRequests', 'GET', 'manage/requests', async () => {
   const x = await (await getPool()).request().query(
-    `SELECT c.RequestId, c.RequestType, c.Status, c.Message, c.AdminNote, c.CreatedAt, CONVERT(VARCHAR(10),c.ClassDate,23) AS ClassDate,
+    `SELECT c.RequestId, c.RequestType, c.Status, c.Message, c.AdminNote, c.CreatedAt, c.EnrollmentId, c.PreferredSessionId, CONVERT(VARCHAR(10),c.ClassDate,23) AS ClassDate,
             u.FirstName AS Parent, u.Email, st.FullName AS Student, ps.DayOfWeek AS PDay, CONVERT(VARCHAR(5),ps.StartTime,108) AS PStart
      FROM dbo.ChangeRequests c JOIN dbo.Users u ON u.UserId=c.UserId
      LEFT JOIN dbo.Enrollments e ON e.EnrollmentId=c.EnrollmentId LEFT JOIN dbo.Students st ON st.StudentId=e.StudentId
@@ -80,17 +81,73 @@ r('adminRequests', 'GET', 'manage/requests', async () => {
   return { jsonBody: x.recordset };
 });
 r('adminRequestUpdate', 'PATCH', 'manage/requests/{id}', async req => {
-  const b = await req.json();
+  const b = await req.json(), id = Number(req.params.id);
   if (!['Pending', 'Approved', 'Declined'].includes(b.status)) throw fail(400, 'Bad status');
-  const pool = await getPool();
-  const x = await pool.request().input('id', sql.Int, Number(req.params.id)).input('s', sql.NVarChar(20), b.status).input('n', sql.NVarChar(500), clean(b.adminNote, 500))
-    .query(`UPDATE c SET Status=@s, AdminNote=@n, ResolvedAt=SYSUTCDATETIME() OUTPUT u.Email, u.FirstName, INSERTED.RequestType
-            FROM dbo.ChangeRequests c JOIN dbo.Users u ON u.UserId=c.UserId WHERE c.RequestId=@id`);
-  const row = x.recordset[0];
-  if (row && b.status !== 'Pending') {
-    try { await sendMail(row.Email, 'Update on your Dream Arts request', `Hi ${row.FirstName},\n\nYour request has been ${b.status.toLowerCase()}.${clean(b.adminNote, 500) ? '\n\nNote from the teacher: ' + clean(b.adminNote, 500) : ''}\n\nYou can see the details after logging in to your account.\n\n- Dream Arts`); } catch (e) { /* ignore */ }
+  const note = clean(b.adminNote, 500), offered = Number(b.sessionId) || null;
+  const tx = new sql.Transaction(await getPool());
+  await tx.begin();
+  const q = () => new sql.Request(tx);
+  let row, newTime = null;
+  try {
+    row = (await q().input('id', sql.Int, id).query(
+      `SELECT c.RequestType, c.EnrollmentId, c.PreferredSessionId, u.Email, u.FirstName FROM dbo.ChangeRequests c JOIN dbo.Users u ON u.UserId=c.UserId WHERE c.RequestId=@id`)).recordset[0];
+    if (!row) throw fail(404, 'Not found');
+    const target = b.status === 'Approved' ? (offered || row.PreferredSessionId) : null;
+    if (target) {
+      const s2 = (await q().input('s', sql.Int, target).query("SELECT DayOfWeek, CONVERT(VARCHAR(5),StartTime,108) AS st, CONVERT(VARCHAR(5),EndTime,108) AS en, Capacity FROM dbo.Sessions WITH (UPDLOCK, HOLDLOCK) WHERE SessionId=@s AND IsActive=1")).recordset[0];
+      if (!s2) throw fail(404, 'That session is not available');
+      newTime = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][s2.DayOfWeek - 1] + ' ' + s2.st + '-' + s2.en;
+      if (row.RequestType === 'ScheduleChange' && row.EnrollmentId) {      // approving a schedule change moves the student
+        const n = (await q().input('s', sql.Int, target).input('e', sql.Int, row.EnrollmentId)
+          .query("SELECT COUNT(*) AS n FROM dbo.Enrollments WHERE SessionId=@s AND EnrollmentId<>@e AND Status IN ('Pending','Active')")).recordset[0].n;
+        if (n >= s2.Capacity) throw fail(409, 'That session is full');
+        await q().input('s', sql.Int, target).input('e', sql.Int, row.EnrollmentId).query('UPDATE dbo.Enrollments SET SessionId=@s WHERE EnrollmentId=@e');
+      }
+    }
+    await q().input('id', sql.Int, id).input('s', sql.NVarChar(20), b.status).input('n', sql.NVarChar(500), note)
+      .query('UPDATE dbo.ChangeRequests SET Status=@s, AdminNote=@n, ResolvedAt=SYSUTCDATETIME() WHERE RequestId=@id');
+    await tx.commit();
+  } catch (e) { await tx.rollback().catch(() => {}); throw e; }
+  if (b.status !== 'Pending') {
+    const what = b.status === 'Approved' ? (newTime ? `approved. The time is: ${newTime}` : 'approved') : 'declined';
+    try { await sendMail(row.Email, 'Update on your Dream Arts request', `Hi ${row.FirstName},\n\nYour request has been ${what}.${note ? '\n\nNote from the teacher: ' + note : ''}\n\nYou can see the details under My account on the Dream Arts website.\n\n- Dream Arts`); } catch (e) { /* the decision stays saved even if the email fails */ }
   }
   return ok;
+});
+
+// ----- schedule: list everything (incl. disabled), enable/disable, seats -----
+r('adminSessions', 'GET', 'manage/sessions', async () => {
+  const x = await (await getPool()).request().query(
+    `SELECT s.SessionId, s.DayOfWeek, CONVERT(VARCHAR(5),s.StartTime,108) AS StartTime, CONVERT(VARCHAR(5),s.EndTime,108) AS EndTime, s.AgeGroup, s.Capacity, s.IsActive,
+            (SELECT COUNT(*) FROM dbo.Enrollments e WHERE e.SessionId=s.SessionId AND e.Status IN ('Pending','Active')) AS Enrolled
+     FROM dbo.Sessions s ORDER BY s.DayOfWeek, s.StartTime`);
+  return { jsonBody: x.recordset };
+});
+r('adminSessionUpdate', 'PATCH', 'manage/sessions/{id}', async req => {
+  const b = await req.json(), rq = (await getPool()).request().input('id', sql.Int, Number(req.params.id)), sets = [];
+  if (b.isActive !== undefined) { rq.input('a', sql.Bit, b.isActive ? 1 : 0); sets.push('IsActive=@a'); }
+  if (b.capacity !== undefined) { const c = Number(b.capacity); if (!(c >= 1 && c <= 50)) throw fail(400, 'Seats must be 1-50'); rq.input('c', sql.TinyInt, c); sets.push('Capacity=@c'); }
+  if (!sets.length) throw fail(400, 'Nothing to update');
+  await rq.query(`UPDATE dbo.Sessions SET ${sets.join(', ')} WHERE SessionId=@id`);
+  return ok;
+});
+
+// ----- fees -----
+r('adminPlanUpdate', 'PATCH', 'manage/plans/{id}', async req => {
+  const b = await req.json(), rq = (await getPool()).request().input('id', sql.SmallInt, Number(req.params.id)), sets = [];
+  if (b.price !== undefined) { if (!(Number(b.price) >= 0)) throw fail(400, 'Bad price'); rq.input('p', sql.Decimal(10, 2), Number(b.price)); sets.push('Price=@p'); }
+  if (b.name !== undefined) { if (!clean(b.name, 60)) throw fail(400, 'Bad name'); rq.input('n', sql.NVarChar(60), clean(b.name, 60)); sets.push('Name=@n'); }
+  if (b.description !== undefined) { rq.input('d', sql.NVarChar(200), clean(b.description, 200)); sets.push('Description=@d'); }
+  if (!sets.length) throw fail(400, 'Nothing to update');
+  await rq.query(`UPDATE dbo.Plans SET ${sets.join(', ')} WHERE PlanId=@id`);
+  return ok;
+});
+
+// ----- students (to tie a picture to a student) -----
+r('adminStudents', 'GET', 'manage/students', async () => {
+  const x = await (await getPool()).request().query(
+    `SELECT st.StudentId, st.FullName, st.Age, u.Email AS ParentEmail FROM dbo.Students st JOIN dbo.Users u ON u.UserId=st.ParentUserId ORDER BY st.FullName`);
+  return { jsonBody: x.recordset };
 });
 
 // ----- paintings for sale -----
@@ -121,11 +178,17 @@ r('adminPaintingDelete', 'DELETE', 'manage/paintings/{id}', async req => {
 
 // ----- student gallery -----
 r('adminArtworkCreate', 'POST', 'manage/artworks', async req => {
-  const b = await req.json();
-  if (!clean(b.title, 150) || !clean(b.artist, 120) || !Number(b.artTypeId)) throw fail(400, 'Title, artist and art type are required');
-  const x = await (await getPool()).request().input('t', sql.NVarChar(150), clean(b.title, 150)).input('a', sql.NVarChar(120), clean(b.artist, 120))
+  const b = await req.json(), pool = await getPool(), studentId = Number(b.studentId) || null;
+  let artist = clean(b.artist, 120);
+  if (studentId) {
+    const st = (await pool.request().input('s', sql.Int, studentId).query('SELECT FullName, Age FROM dbo.Students WHERE StudentId=@s')).recordset[0];
+    if (!st) throw fail(400, 'Student not found');
+    if (!artist) artist = `${st.FullName}, ${st.Age}`;
+  }
+  if (!clean(b.title, 150) || !artist || !Number(b.artTypeId)) throw fail(400, 'Title, student (or artist) and art type are required');
+  const x = await pool.request().input('t', sql.NVarChar(150), clean(b.title, 150)).input('a', sql.NVarChar(120), artist).input('st', sql.Int, studentId)
     .input('at', sql.SmallInt, Number(b.artTypeId)).input('i', sql.NVarChar(500), imgUrl(b.imageId))
-    .query('INSERT dbo.StudentArtworks (Title, ArtistName, ArtTypeId, ImageUrl) OUTPUT INSERTED.ArtworkId VALUES (@t,@a,@at,@i)');
+    .query('INSERT dbo.StudentArtworks (StudentId, Title, ArtistName, ArtTypeId, ImageUrl) OUTPUT INSERTED.ArtworkId VALUES (@st,@t,@a,@at,@i)');
   return { status: 201, jsonBody: { ok: true, artworkId: x.recordset[0].ArtworkId } };
 });
 r('adminArtworkDelete', 'DELETE', 'manage/artworks/{id}', async req => {
@@ -157,7 +220,9 @@ r('adminSettingsGet', 'GET', 'manage/settings', async () => {
 });
 r('adminSettingsPut', 'PUT', 'manage/settings', async req => {
   const b = await req.json(), pool = await getPool();
-  const items = [['zellePhone', clean(b.zellePhone, 30)]];
+  const items = [];
+  if (b.zellePhone !== undefined) items.push(['zellePhone', clean(b.zellePhone, 30)]);
+  if (b.registrationFee !== undefined) { if (!(Number(b.registrationFee) >= 0)) throw fail(400, 'Bad fee'); items.push(['registrationFee', String(Number(b.registrationFee))]); }
   if (b.zelleQrImageId !== undefined) { if (b.zelleQrImageId && !GUID.test(b.zelleQrImageId)) throw fail(400, 'Bad image'); items.push(['zelleQrImageId', clean(b.zelleQrImageId, 40)]); }
   for (const [k, v] of items) await pool.request().input('k', sql.NVarChar(50), k).input('v', sql.NVarChar(500), v)
     .query('MERGE dbo.Settings AS t USING (SELECT @k AS k) AS s ON t.SettingKey=s.k WHEN MATCHED THEN UPDATE SET SettingValue=@v WHEN NOT MATCHED THEN INSERT (SettingKey, SettingValue) VALUES (@k,@v);');
