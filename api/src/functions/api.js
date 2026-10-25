@@ -76,7 +76,7 @@ app.http('register', { methods: ['POST'], route: 'register', authLevel: 'anonymo
 }) });
 
 // ---------- admin ----------
-app.http('adminEnrollments', { methods: ['GET'], route: 'admin/enrollments', authLevel: 'anonymous', handler: handler(async req => {
+app.http('adminEnrollments', { methods: ['GET'], route: 'manage/enrollments', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
   const r = await (await getPool()).request().query(`
     SELECT e.EnrollmentId, e.SessionId, e.Status, e.EnrolledAt, st.FullName AS Student, st.Age, u.FirstName AS Parent, u.Email, u.Phone,
@@ -89,7 +89,7 @@ app.http('adminEnrollments', { methods: ['GET'], route: 'admin/enrollments', aut
 }) });
 
 
-app.http('adminSessionCreate', { methods: ['POST'], route: 'admin/sessions', authLevel: 'anonymous', handler: handler(async req => {
+app.http('adminSessionCreate', { methods: ['POST'], route: 'manage/sessions', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
   const b = await req.json();
   const day = Number(b.dayOfWeek), cap = Number(b.capacity || 8);
@@ -102,13 +102,13 @@ app.http('adminSessionCreate', { methods: ['POST'], route: 'admin/sessions', aut
   } catch (e) { if (e.number === 2627 || e.number === 2601) throw fail(409, 'A session already starts at that time'); throw e; }
 }) });
 
-app.http('adminSessionDelete', { methods: ['DELETE'], route: 'admin/sessions/{id}', authLevel: 'anonymous', handler: handler(async req => {
+app.http('adminSessionDelete', { methods: ['DELETE'], route: 'manage/sessions/{id}', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
   await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).query('UPDATE dbo.Sessions SET IsActive=0 WHERE SessionId=@id'); // soft delete keeps enrollment history
   return { jsonBody: { ok: true } };
 }) });
 
-app.http('adminPayments', { methods: ['GET'], route: 'admin/payments', authLevel: 'anonymous', handler: handler(async req => {
+app.http('adminPayments', { methods: ['GET'], route: 'manage/payments', authLevel: 'anonymous', handler: handler(async req => {
   requireAdmin(req);
   const r = await (await getPool()).request().query('SELECT TOP 200 PaymentId, PayerName, PayerEmail, PaymentType, Description, Amount, Method, Status, CreatedAt, PaidAt FROM dbo.Payments ORDER BY CreatedAt DESC');
   return { jsonBody: r.recordset };

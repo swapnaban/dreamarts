@@ -13,7 +13,7 @@ const r = (name, method, route, fn) => app.http(name, { methods: [method], route
 const ok = { jsonBody: { ok: true } };
 
 // ----- enrollments: accept / decline / change time -----
-r('adminEnrollmentUpdate', 'PATCH', 'admin/enrollments/{id}', async req => {
+r('adminEnrollmentUpdate', 'PATCH', 'manage/enrollments/{id}', async req => {
   const b = await req.json(), id = Number(req.params.id);
   const status = b.status ? String(b.status) : null, sessionId = b.sessionId ? Number(b.sessionId) : null;
   if (status && !['Pending', 'Active', 'Paused', 'Cancelled', 'Declined'].includes(status)) throw fail(400, 'Bad status');
@@ -58,7 +58,7 @@ r('adminEnrollmentUpdate', 'PATCH', 'admin/enrollments/{id}', async req => {
 });
 
 // ----- payments -----
-r('adminPaymentUpdate', 'PATCH', 'admin/payments/{id}', async req => {
+r('adminPaymentUpdate', 'PATCH', 'manage/payments/{id}', async req => {
   const b = await req.json();
   if (!['Pending', 'Submitted', 'Paid', 'Failed', 'Refunded'].includes(b.status)) throw fail(400, 'Bad status');
   await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).input('s', sql.NVarChar(20), b.status).query(
@@ -70,7 +70,7 @@ r('adminPaymentUpdate', 'PATCH', 'admin/payments/{id}', async req => {
 });
 
 // ----- parent requests -----
-r('adminRequests', 'GET', 'admin/requests', async () => {
+r('adminRequests', 'GET', 'manage/requests', async () => {
   const x = await (await getPool()).request().query(
     `SELECT c.RequestId, c.RequestType, c.Status, c.Message, c.AdminNote, c.CreatedAt, CONVERT(VARCHAR(10),c.ClassDate,23) AS ClassDate,
             u.FirstName AS Parent, u.Email, st.FullName AS Student, ps.DayOfWeek AS PDay, CONVERT(VARCHAR(5),ps.StartTime,108) AS PStart
@@ -79,7 +79,7 @@ r('adminRequests', 'GET', 'admin/requests', async () => {
      LEFT JOIN dbo.Sessions ps ON ps.SessionId=c.PreferredSessionId ORDER BY c.CreatedAt DESC`);
   return { jsonBody: x.recordset };
 });
-r('adminRequestUpdate', 'PATCH', 'admin/requests/{id}', async req => {
+r('adminRequestUpdate', 'PATCH', 'manage/requests/{id}', async req => {
   const b = await req.json();
   if (!['Pending', 'Approved', 'Declined'].includes(b.status)) throw fail(400, 'Bad status');
   const pool = await getPool();
@@ -94,7 +94,7 @@ r('adminRequestUpdate', 'PATCH', 'admin/requests/{id}', async req => {
 });
 
 // ----- paintings for sale -----
-r('adminPaintingCreate', 'POST', 'admin/paintings', async req => {
+r('adminPaintingCreate', 'POST', 'manage/paintings', async req => {
   const b = await req.json();
   const title = clean(b.title, 150), price = Number(b.price);
   if (!title || !(price >= 0) || !Number(b.artTypeId)) throw fail(400, 'Title, art type and price are required');
@@ -103,7 +103,7 @@ r('adminPaintingCreate', 'POST', 'admin/paintings', async req => {
     .query('INSERT dbo.Paintings (Title, ArtistName, ArtTypeId, SizeText, Price, ImageUrl) OUTPUT INSERTED.PaintingId VALUES (@t,@a,@at,@sz,@p,@i)');
   return { status: 201, jsonBody: { ok: true, paintingId: x.recordset[0].PaintingId } };
 });
-r('adminPaintingUpdate', 'PATCH', 'admin/paintings/{id}', async req => {
+r('adminPaintingUpdate', 'PATCH', 'manage/paintings/{id}', async req => {
   const b = await req.json();
   const rq = (await getPool()).request().input('id', sql.Int, Number(req.params.id));
   const sets = [];
@@ -113,14 +113,14 @@ r('adminPaintingUpdate', 'PATCH', 'admin/paintings/{id}', async req => {
   await rq.query(`UPDATE dbo.Paintings SET ${sets.join(', ')} WHERE PaintingId=@id`);
   return ok;
 });
-r('adminPaintingDelete', 'DELETE', 'admin/paintings/{id}', async req => {
+r('adminPaintingDelete', 'DELETE', 'manage/paintings/{id}', async req => {
   try { await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).query('DELETE dbo.Paintings WHERE PaintingId=@id'); }
   catch (e) { if (e.number === 547) throw fail(409, 'This painting has orders. Mark it Sold instead of deleting.'); throw e; }
   return ok;
 });
 
 // ----- student gallery -----
-r('adminArtworkCreate', 'POST', 'admin/artworks', async req => {
+r('adminArtworkCreate', 'POST', 'manage/artworks', async req => {
   const b = await req.json();
   if (!clean(b.title, 150) || !clean(b.artist, 120) || !Number(b.artTypeId)) throw fail(400, 'Title, artist and art type are required');
   const x = await (await getPool()).request().input('t', sql.NVarChar(150), clean(b.title, 150)).input('a', sql.NVarChar(120), clean(b.artist, 120))
@@ -128,19 +128,19 @@ r('adminArtworkCreate', 'POST', 'admin/artworks', async req => {
     .query('INSERT dbo.StudentArtworks (Title, ArtistName, ArtTypeId, ImageUrl) OUTPUT INSERTED.ArtworkId VALUES (@t,@a,@at,@i)');
   return { status: 201, jsonBody: { ok: true, artworkId: x.recordset[0].ArtworkId } };
 });
-r('adminArtworkDelete', 'DELETE', 'admin/artworks/{id}', async req => {
+r('adminArtworkDelete', 'DELETE', 'manage/artworks/{id}', async req => {
   await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).query('DELETE dbo.StudentArtworks WHERE ArtworkId=@id');
   return ok;
 });
 
 // ----- custom painting requests -----
-r('adminCustomRequests', 'GET', 'admin/custom-requests', async () => {
+r('adminCustomRequests', 'GET', 'manage/custom-requests', async () => {
   const x = await (await getPool()).request().query(
     `SELECT c.RequestId, c.Name, c.Email, c.Phone, a.Name AS ArtType, c.SizeText, c.Budget, c.Details, c.ReferenceImageUrl, c.QuotedPrice, c.Status, c.CreatedAt
      FROM dbo.CustomRequests c LEFT JOIN dbo.ArtTypes a ON a.ArtTypeId=c.ArtTypeId ORDER BY c.CreatedAt DESC`);
   return { jsonBody: x.recordset };
 });
-r('adminCustomRequestUpdate', 'PATCH', 'admin/custom-requests/{id}', async req => {
+r('adminCustomRequestUpdate', 'PATCH', 'manage/custom-requests/{id}', async req => {
   const b = await req.json();
   if (!['New', 'Quoted', 'In progress', 'Completed', 'Declined'].includes(b.status)) throw fail(400, 'Bad status');
   const rq = (await getPool()).request().input('id', sql.Int, Number(req.params.id)).input('s', sql.NVarChar(20), b.status);
@@ -151,11 +151,11 @@ r('adminCustomRequestUpdate', 'PATCH', 'admin/custom-requests/{id}', async req =
 });
 
 // ----- settings (Zelle phone + QR image) -----
-r('adminSettingsGet', 'GET', 'admin/settings', async () => {
+r('adminSettingsGet', 'GET', 'manage/settings', async () => {
   const x = await (await getPool()).request().query('SELECT SettingKey, SettingValue FROM dbo.Settings');
   return { jsonBody: Object.fromEntries(x.recordset.map(v => [v.SettingKey, v.SettingValue])) };
 });
-r('adminSettingsPut', 'PUT', 'admin/settings', async req => {
+r('adminSettingsPut', 'PUT', 'manage/settings', async req => {
   const b = await req.json(), pool = await getPool();
   const items = [['zellePhone', clean(b.zellePhone, 30)]];
   if (b.zelleQrImageId !== undefined) { if (b.zelleQrImageId && !GUID.test(b.zelleQrImageId)) throw fail(400, 'Bad image'); items.push(['zelleQrImageId', clean(b.zelleQrImageId, 40)]); }
