@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /.auth/
+
+Sitemap: https://www.dreamartsllc.com/sitemap.xml

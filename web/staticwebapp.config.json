@@ -23,7 +23,11 @@
     "rewrite": "/index.html",
     "exclude": [
       "/api/*",
-      "/.auth/*"
+      "/.auth/*",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/favicon.svg",
+      "/og-image.jpg"
     ]
   },
   "globalHeaders": {
