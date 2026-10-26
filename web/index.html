@@ -298,7 +298,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overflow-x:clip;-w
 <a class="card hc" href="#shop"><div class="ic">🛍️</div><h3>Paintings for sale</h3><p class="mut">Paintings for sale and custom requests.</p></a>
 <a class="card hc" href="#fees"><div class="ic">💳</div><h3>Fees</h3><p class="mut">Plans and payment.</p></a>
 <a class="card hc nonadm" href="#register"><div class="ic">📝</div><h3>Register</h3><p class="mut">Enroll a new student.</p></a>
-<a class="card hc" href="#about"><div class="ic">🌟</div><h3>About us</h3><p class="mut">Our story and teaching approach.</p></a>
+<a class="card hc" href="#about"><div class="ic">🌟</div><h3>About us</h3><p class="mut">Who we are and how we teach.</p></a>
 </div></aside></div></section></div>
 
 <section class="view" id="about" style="padding:0">
@@ -311,8 +311,8 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overflow-x:clip;-w
 <div class="wrap pbody">
 <div class="split">
 <div>
-<h2 class="sec-h">Our story</h2>
-<p class="mut">At <b>Dream Arts</b>, we believe every child has an artist within them waiting to be discovered. Our classes give children room to explore different mediums, from pencil and watercolor to acrylic and oil, in a calm, encouraging space.</p>
+<h2 class="sec-h">At Dream Arts</h2>
+<p class="mut">We believe every child has an artist within them waiting to be discovered. Our classes give children room to explore different mediums, from pencil and watercolor to acrylic, oil and mixed media, in a calm, encouraging space.</p>
 <p class="mut">Drawing is more than a hobby. It sharpens focus, strengthens thinking and gives children a peaceful way to express what they see and feel. We keep our groups small so each child gets real attention and steady progress, whatever their starting point.</p>
 </div>
 <div class="quote">Every child is an artist. Our job is to help them believe it.<small>The Dream Arts promise</small></div>
@@ -516,7 +516,7 @@ const CLASSES=[
  {id:'acrylic',n:'Acrylic Painting',i:'🖌️',d:'Bold colors on canvas, from first brushstroke.'},
  {id:'oil',n:'Oil Painting',i:'🎨',d:'Rich blending, layering and texture on canvas.'},
  {id:'pastel',n:'Pastel & Crayon',i:'🖍️',d:'Soft, vibrant color for younger artists.'},
- {id:'mixed',n:'Mixed Media & Collage',i:'✂️',d:'Paper, paint and found materials combined.'}];
+ {id:'mixed',n:'Mixed Media',i:'✂️',d:'Paper, paint and found materials combined.'}];
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat'];
 const SCHED=[['Mon','5:00–6:00 PM','','All ages',1700],['Mon','6:00–7:00 PM','','All ages',1800],['Tue','5:00–6:00 PM','','All ages',1700],['Tue','6:00–7:00 PM','','All ages',1800],['Wed','5:00–6:00 PM','','All ages',1700],['Wed','6:00–7:00 PM','','All ages',1800],['Thu','5:00–6:00 PM','','All ages',1700],['Thu','6:00–7:00 PM','','All ages',1800],['Fri','5:00–6:00 PM','','All ages',1700],['Fri','6:00–7:00 PM','','All ages',1800],['Sat','10:00–11:00 AM','','All ages',1000],['Sat','11:00 AM–12:00 PM','','All ages',1100]];
 const ART0=[['Sunset Over Hills','Maya, 9','water',45],['Lion King','Arjun, 8','pastel',0],['Still Life: Pears','Sofia, 12','pencil',60],['Blue Dragon','Leo, 10','mixed',30],['Ocean Waves','Priya, 11','acrylic',85],['My Cat Momo','Ella, 7','pencil',0],['Rainy City','Noah, 13','water',70],['Garden Party','Zara, 8','acrylic',0],['Robot Friend','Kai, 9','pastel',25]];
@@ -607,7 +607,7 @@ const API_MODE=typeof claude==='undefined',API='/api';
 let TOKEN=(()=>{try{return localStorage.getItem('da_token')}catch(e){return null}})(),ME=null,acctStep='email',acctEmail='';
 const J=async(u,o={})=>{const r=await fetch(API+u,{cache:'no-store',credentials:'same-origin',method:o.method||'GET',headers:{'Content-Type':'application/json',...(TOKEN?{'x-da-token':TOKEN}:{})},body:o.body?JSON.stringify(o.body):undefined});const d=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(d.error||r.status),{status:r.status});return d};
 const hm=t=>{const[h,m]=t.split(':').map(Number);return(h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM')};
-let ARTT=[];const stId=n=>(CLASSES.find(c=>c.n===n)||{}).id||'pencil';
+let ARTT=[];const stId=n=>(CLASSES.find(c=>c.n===(n==='Mixed Media & Collage'?'Mixed Media':n))||{}).id||'pencil';
 document.addEventListener('click',async e=>{const l=e.target.closest('#navLogout');if(!l)return;e.preventDefault();try{await J('/auth/logout',{method:'POST'})}catch(x){}setTok(null);ME=null;acctStep='email';acctUi();location.hash='home';toast('You are logged out')});
 // ----- full-size picture popup (everyone), upload preview, painting enquiry -----
 document.addEventListener('click',e=>{const z=e.target.closest('[data-zoom]');if(z){const b=$('#lb');b.querySelector('img').src=z.dataset.zoom;b.querySelector('p').textContent=z.dataset.cap||'';b.classList.add('open');return}if(e.target.closest('#lb'))$('#lb').classList.remove('open')});
@@ -629,7 +629,7 @@ function loadPaint(n=0){PST=n?PST:'load';return J('/paintings').then(r=>{D.paint
 let LSS=0;
 function loadSess(force){if(!API_MODE)return;const n=Date.now();if(!force&&n-LSS<4000)return;LSS=n;return J('/sessions').then(ss=>{D.classes=ss.map(x=>({_id:String(x.SessionId),day:DAYS[x.DayOfWeek-1],time:hm(x.StartTime)+'–'+hm(x.EndTime),ages:x.AgeGroup,capacity:x.Capacity,enrolled:x.Enrolled,sort:+x.StartTime.replace(':','')}));renderAll()}).catch(()=>{})}
 setInterval(()=>{if(!document.hidden)loadSess()},60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadSess()});
-async function loadApi(){const[ss,at,pl]=await Promise.all([J('/sessions'),J('/arttypes'),J('/plans')]);ARTT=at;
+async function loadApi(){const[ss,at,pl]=await Promise.all([J('/sessions'),J('/arttypes'),J('/plans')]);ARTT=at.map(a=>({...a,Name:a.Name==='Mixed Media & Collage'?'Mixed Media':a.Name}));
  D.classes=ss.map(x=>({_id:String(x.SessionId),day:DAYS[x.DayOfWeek-1],time:hm(x.StartTime)+'–'+hm(x.EndTime),ages:x.AgeGroup,capacity:x.Capacity,enrolled:x.Enrolled,sort:+x.StartTime.replace(':','')}));
   loadPaint();
  loadArt();
