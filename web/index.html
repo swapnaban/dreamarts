@@ -254,6 +254,16 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overflow-x:clip;-w
 @media(max-width:359px){.logo small{display:none!important}}
 @media(max-width:480px){nav .wrap{padding-left:12px;padding-right:12px}}
 @supports(height:100dvh){.cbox{max-height:calc(100dvh - 120px)}}
+
+.pfig.abx{position:relative;width:300px;max-width:42vw;aspect-ratio:240/150;overflow:hidden;border-radius:16px;background:#fff8ec;box-shadow:0 8px 22px rgba(42,38,64,.15);border:3px solid #fff}
+.abx svg{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity 1s}.abx svg.on{opacity:1}
+.ab-d{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:3;stroke-dasharray:var(--len);animation:pfdraw 7s ease-in-out infinite}
+.ab-arm{transform-box:fill-box;transform-origin:0% 100%;animation:abarm 1.1s ease-in-out infinite alternate}@keyframes abarm{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+.ab-bob{transform-box:fill-box;transform-origin:50% 100%;animation:abbob 2.2s ease-in-out infinite}@keyframes abbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.ab-pop{transform-box:fill-box;transform-origin:center;animation:pfpop 5s ease-in-out infinite}
+.ab-cray{animation:abcr 3s ease-in-out infinite;transform-box:fill-box}@keyframes abcr{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(22px,-6px) rotate(10deg)}}
+@media(max-width:700px){.pfig.abx{width:140px;max-width:38vw;border-width:2px}}
+@media(prefers-reduced-motion:reduce){.abx *{animation:none!important}.ab-d{stroke-dashoffset:0}}
 </style>
 </head>
 <body>
@@ -302,12 +312,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overflow-x:clip;-w
 </div></aside></div></section></div>
 
 <section class="view" id="about" style="padding:0">
-<div class="phead"><div class="wrap pg"><div class="ptxt"><span class="eyebrow">About us</span><h1>Where little hands draw big dreams</h1><p>Dream Arts is a friendly art school for children. We help every child discover their creative voice through drawing and painting, one confident brushstroke at a time.</p></div><svg class="pfig" viewBox="0 0 240 150" aria-hidden="true"><g transform="translate(34 38)"><g class="pf-drift" style="animation-delay:0s"><ellipse cx="0" cy="0" rx="20" ry="8" fill="#fff" opacity=".85"/><ellipse cx="-8" cy="-6" rx="10" ry="8" fill="#fff" opacity=".85"/><ellipse cx="8" cy="-4" rx="12" ry="9" fill="#fff" opacity=".85"/></g></g><g transform="translate(206 60)"><g class="pf-drift" style="animation-delay:2s"><ellipse cx="0" cy="0" rx="20" ry="8" fill="#fff" opacity=".85"/><ellipse cx="-8" cy="-6" rx="10" ry="8" fill="#fff" opacity=".85"/><ellipse cx="8" cy="-4" rx="12" ry="9" fill="#fff" opacity=".85"/></g></g>
-<path class="pf-draw" d="M28 126A92 92 0 0 1 212 126" stroke="#e8553d" stroke-width="10" style="--len:289"/>
-<path class="pf-draw" d="M40 126A80 80 0 0 1 200 126" stroke="#f6b93b" stroke-width="10" style="--len:251;animation-delay:.25s"/>
-<path class="pf-draw" d="M52 126A68 68 0 0 1 188 126" stroke="#1f9d8f" stroke-width="10" style="--len:214;animation-delay:.5s"/>
-<path class="pf-draw" d="M64 126A56 56 0 0 1 176 126" stroke="#7c5cff" stroke-width="10" style="--len:176;animation-delay:.75s"/>
-<g transform="translate(120 104)"><path class="pf-float" style="animation-delay:0s" d="M0 6C-14-6-4-18 0-8 4-18 14-6 0 6z" fill="#e8553d"/></g><g transform="translate(92 120)"><path class="pf-float" style="animation-delay:0.8s" d="M0 6C-14-6-4-18 0-8 4-18 14-6 0 6z" fill="#f6b93b"/></g><g transform="translate(148 120)"><path class="pf-float" style="animation-delay:1.4s" d="M0 6C-14-6-4-18 0-8 4-18 14-6 0 6z" fill="#1f9d8f"/></g><g transform="translate(60 22) scale(1)"><path class="pf-tw" style="animation-delay:0s" d="M0-8l2.4 5.6L8 0 2.4 2.4 0 8-2.4 2.4-8 0l5.6-2.4z" fill="#fff"/></g><g transform="translate(186 18) scale(0.8)"><path class="pf-tw" style="animation-delay:1.1s" d="M0-8l2.4 5.6L8 0 2.4 2.4 0 8-2.4 2.4-8 0l5.6-2.4z" fill="#fff"/></g><g transform="translate(120 12) scale(1)"><path class="pf-tw" style="animation-delay:0.5s" d="M0-8l2.4 5.6L8 0 2.4 2.4 0 8-2.4 2.4-8 0l5.6-2.4z" fill="#f6b93b"/></g></svg></div></div>
+<div class="phead"><div class="wrap pg"><div class="ptxt"><span class="eyebrow">About us</span><h1>Where little hands draw big dreams</h1><p>Dream Arts is a friendly art school for children. We help every child discover their creative voice through drawing and painting, one confident brushstroke at a time.</p></div><div class="pfig abx" id="abFig" aria-hidden="true"></div></div></div>
 <div class="wrap pbody">
 <div class="split">
 <div>
@@ -859,6 +864,22 @@ SC.forEach(h=>f.insertAdjacentHTML('beforeend',h));const L=[base,...f.querySelec
 if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
 const show=i=>{L.forEach((s,k)=>{s.classList.toggle('on',k===i&&i>0);s.classList.toggle('off',k===0&&i>0)});cur=i};
 setInterval(()=>{if(document.hidden)return;let n;do{n=Math.floor(Math.random()*L.length)}while(n===cur);show(n)},9000);})();
+
+(function(){const f=document.getElementById('abFig');if(!f)return;
+const T='<svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg">',E='</svg>';
+const kid=(x,y,sh,hr,cl,d=0,flip=1)=>`<g transform="translate(${x} ${y}) scale(${flip} 1)"><g class="ab-bob" style="animation-delay:${d}s"><path d="M-11 34l3-20h16l3 20z" fill="${sh}"/><circle cx="0" cy="4" r="10" fill="#f6d2b0"/><path d="M-10 3a10 10 0 0 1 20 0c-4-5-14-5-20 0z" fill="${hr}"/><circle cx="-3.5" cy="5" r="1.2" fill="#2a2640"/><circle cx="3.5" cy="5" r="1.2" fill="#2a2640"/><path d="M-3 9q3 3 6 0" stroke="#2a2640" stroke-width="1.2" fill="none"/><g transform="translate(6 18)"><g class="ab-arm" style="animation-delay:${d}s"><rect x="0" y="-3" width="20" height="5" rx="2.5" fill="#f6d2b0" transform="rotate(-40)"/><circle cx="14" cy="-14" r="3" fill="${cl}"/></g></g></g></g>`;
+const D=(d,c,len,dl=0,w=3)=>`<path class="ab-d" style="--len:${len};animation-delay:${dl}s" d="${d}" stroke="${c}" stroke-width="${w}"/>`;
+const easel=(x,y,w,h,inner)=>`<g transform="translate(${x} ${y})"><line x1="${w*.25}" y1="${h}" x2="${w*.1}" y2="${h+26}" stroke="#8a5a2b" stroke-width="3"/><line x1="${w*.75}" y1="${h}" x2="${w*.9}" y2="${h+26}" stroke="#8a5a2b" stroke-width="3"/><rect width="${w}" height="${h}" fill="#fff" stroke="#2a2640" stroke-width="2.5"/>${inner}</g>`;
+const SC=[
+// easels: house, sun and tree being drawn
+T+`<rect width="240" height="150" fill="#fff3e0"/><rect y="118" width="240" height="32" fill="#f3d9b5"/>`+easel(14,26,70,60,D('M12 50h40V28l-20-14-20 14z','#e8553d',150)+D('M28 50V38h8v12','#2a2640',30,1)+`<circle class="ab-pop" cx="58" cy="14" r="0" fill="none"/>`+D('M60 12a5 5 0 1 0 .1 0','#f6b93b',32,1.6))+easel(150,38,76,52,D('M38 46V28','#8a5a2b',20,.2,4)+D('M38 30a14 12 0 1 1 .1 0','#1f9d8f',90,.8,3)+D('M8 46h60','#7cc576',60,1.4,3))+kid(108,70,'#e8553d','#5a3a22','#e8553d',0)+kid(132,76,'#1f9d8f','#2a2640','#7c5cff',.4,-1)+E,
+// mural wall: rainbow, flowers, butterfly
+T+`<rect width="240" height="150" fill="#e8f6f3"/><rect y="124" width="240" height="26" fill="#d8c3a0"/><rect x="16" y="14" width="208" height="96" rx="6" fill="#fff" stroke="#2a2640" stroke-width="2.5"/>`+D('M52 96a38 38 0 0 1 76 0','#e8553d',120,0,5)+D('M60 96a30 30 0 0 1 60 0','#f6b93b',95,.4,5)+D('M68 96a22 22 0 0 1 44 0','#1f9d8f',70,.8,5)+D('M150 96V70','#2f9d6a',26,1.2)+`<circle class="ab-pop" cx="150" cy="64" r="7" fill="#ff7eb6" style="animation-delay:1.6s"/>`+D('M180 96V60','#2f9d6a',36,1.8)+`<circle class="ab-pop" cx="180" cy="54" r="8" fill="#7c5cff" style="animation-delay:2.2s"/>`+`<g class="ab-pop" style="animation-delay:2.8s"><ellipse cx="200" cy="36" rx="7" ry="9" fill="#f6b93b"/><ellipse cx="212" cy="36" rx="7" ry="9" fill="#e8553d"/></g>`+kid(40,92,'#7c5cff','#2a2640','#e8553d',0)+kid(200,98,'#f6b93b','#8a4b1e','#1f9d8f',.5,-1)+E,
+// table: crayons, paper with cat, fish, star
+T+`<rect width="240" height="150" fill="#fff0f3"/><rect x="0" y="104" width="240" height="46" fill="#e8c98a"/><rect x="20" y="62" width="200" height="12" rx="4" fill="#c99a5b" stroke="#2a2640" stroke-width="2.5"/><rect x="34" y="40" width="70" height="48" rx="3" fill="#fff" stroke="#2a2640" stroke-width="2" transform="rotate(-4 70 64)"/><rect x="132" y="42" width="70" height="46" rx="3" fill="#fff" stroke="#2a2640" stroke-width="2" transform="rotate(3 168 64)"/>`+D('M52 78q0-18 18-18t18 18z','#e8553d',100,0,2.6)+D('M54 62l-4-8 8 4M86 62l4-8-8 4','#e8553d',40,.8,2.6)+D('M146 64q14-12 28 0-14 12-28 0z M174 64l10-8v16z','#1f9d8f',110,.4,2.6)+D('M192 52l3 6 6 1-5 4 1 6-5-3-5 3 1-6-5-4 6-1z','#f6b93b',56,1.4,2.2)+`<g class="ab-cray"><rect x="104" y="56" width="22" height="6" rx="2" fill="#7c5cff"/></g><rect x="108" y="92" width="22" height="6" rx="2" fill="#f6b93b" transform="rotate(12 119 95)"/><rect x="132" y="94" width="22" height="6" rx="2" fill="#e8553d" transform="rotate(-8 143 97)"/>`+kid(60,30,'#ff7eb6','#5a3a22','#7c5cff',0)+kid(180,28,'#1f9d8f','#2a2640','#e8553d',.6,-1)+E];
+SC.forEach(h=>f.insertAdjacentHTML('beforeend',h));const L=[...f.querySelectorAll('svg')];let cur=0;L[0].classList.add('on');
+if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+setInterval(()=>{if(document.hidden)return;let n;do{n=Math.floor(Math.random()*L.length)}while(n===cur);L[cur].classList.remove('on');L[n].classList.add('on');cur=n},8000);})();
 </script>
 </body>
 </html>
