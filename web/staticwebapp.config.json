@@ -13,6 +13,97 @@
       }
     },
     {
+      "route": "/classes/mixed-media",
+      "rewrite": "/classes/mixed-media/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/classes/pastel-crayon",
+      "rewrite": "/classes/pastel-crayon/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/classes/oil-painting",
+      "rewrite": "/classes/oil-painting/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/classes/acrylic-painting",
+      "rewrite": "/classes/acrylic-painting/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/classes/watercolor",
+      "rewrite": "/classes/watercolor/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/classes/drawing",
+      "rewrite": "/classes/drawing/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/faq",
+      "rewrite": "/faq/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/register",
+      "rewrite": "/register/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/shop",
+      "rewrite": "/shop/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/fees",
+      "rewrite": "/fees/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/schedule",
+      "rewrite": "/schedule/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/classes",
+      "rewrite": "/classes/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/about",
+      "rewrite": "/about/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
       "route": "/api/manage/*",
       "allowedRoles": [
         "authenticated"

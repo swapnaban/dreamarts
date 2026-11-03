@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://www.dreamartsllc.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://www.dreamartsllc.com/classes</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.dreamartsllc.com/schedule</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.dreamartsllc.com/fees</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.dreamartsllc.com/about</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.dreamartsllc.com/shop</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.dreamartsllc.com/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.dreamartsllc.com/faq</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.dreamartsllc.com/classes/drawing</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.dreamartsllc.com/classes/watercolor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.dreamartsllc.com/classes/acrylic-painting</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.dreamartsllc.com/classes/oil-painting</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.dreamartsllc.com/classes/pastel-crayon</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.dreamartsllc.com/classes/mixed-media</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>
