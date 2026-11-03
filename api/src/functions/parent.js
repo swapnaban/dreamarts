@@ -20,9 +20,13 @@ par('me', 'GET', 'me', async req => {
     q().query(`SELECT c.RequestId, c.RequestType, c.Status, c.Message, c.AdminNote, c.CreatedAt, CONVERT(VARCHAR(10),c.ClassDate,23) AS ClassDate
                FROM dbo.ChangeRequests c WHERE c.UserId=@u ORDER BY c.CreatedAt DESC`),
     pool.request().query("SELECT SettingKey, SettingValue FROM dbo.Settings WHERE SettingKey IN ('zellePhone','zelleQrImageId')")]);
+  let materials = [];   // the table is created by dreamarts_v7.sql; until then the account page still works
+  try { materials = (await pool.request().input('u', sql.Int, me.UserId).query(
+    `SELECT ItemId, StudentId, ItemName, Notes FROM dbo.MaterialItems
+     WHERE StudentId IS NULL OR StudentId IN (SELECT StudentId FROM dbo.Students WHERE ParentUserId=@u) ORDER BY SortOrder, ItemId`)).recordset; } catch (e) { materials = []; }
   const m = Object.fromEntries(settings.recordset.map(v => [v.SettingKey, v.SettingValue]));
   return { jsonBody: { name: me.FirstName, email: me.Email, phone: me.Phone, students: students.recordset, enrollments: enrollments.recordset,
-    payments: payments.recordset, requests: requests.recordset, zelle: { phone: m.zellePhone || '', qrImageId: m.zelleQrImageId || '' } } };
+    payments: payments.recordset, materials, requests: requests.recordset, zelle: { phone: m.zellePhone || '', qrImageId: m.zelleQrImageId || '' } } };
 });
 
 // Ask for a schedule change, an additional class, or a make-up for a missed class

@@ -233,3 +233,30 @@ r('adminSettingsPut', 'PUT', 'manage/settings', async req => {
     .query('MERGE dbo.Settings AS t USING (SELECT @k AS k) AS s ON t.SettingKey=s.k WHEN MATCHED THEN UPDATE SET SettingValue=@v WHEN NOT MATCHED THEN INSERT (SettingKey, SettingValue) VALUES (@k,@v);');
   return ok;
 });
+
+// ----- material list: StudentId empty = general list for everyone, otherwise for one student -----
+r('adminMaterials', 'GET', 'manage/materials', async () => {
+  const x = await (await getPool()).request().query(
+    `SELECT m.ItemId, m.StudentId, st.FullName AS Student, m.ItemName, m.Notes FROM dbo.MaterialItems m LEFT JOIN dbo.Students st ON st.StudentId=m.StudentId ORDER BY CASE WHEN m.StudentId IS NULL THEN 0 ELSE 1 END, st.FullName, m.SortOrder, m.ItemId`);
+  return { jsonBody: x.recordset };
+});
+r('adminMaterialCreate', 'POST', 'manage/materials', async req => {
+  const b = await req.json(), name = clean(b.itemName, 150);
+  if (!name) throw fail(400, 'Item name is required');
+  const sid = Number(b.studentId) || null;
+  await (await getPool()).request().input('s', sql.Int, sid).input('n', sql.NVarChar(150), name).input('t', sql.NVarChar(300), clean(b.notes, 300))
+    .query('INSERT dbo.MaterialItems (StudentId, ItemName, Notes, SortOrder) VALUES (@s,@n,@t,(SELECT ISNULL(MAX(SortOrder),0)+1 FROM dbo.MaterialItems))');
+  return { status: 201, jsonBody: { ok: true } };
+});
+r('adminMaterialUpdate', 'PATCH', 'manage/materials/{id}', async req => {
+  const b = await req.json(), rq = (await getPool()).request().input('id', sql.Int, Number(req.params.id)), sets = [];
+  if (b.itemName !== undefined) { if (!clean(b.itemName, 150)) throw fail(400, 'Item name is required'); rq.input('n', sql.NVarChar(150), clean(b.itemName, 150)); sets.push('ItemName=@n'); }
+  if (b.notes !== undefined) { rq.input('t', sql.NVarChar(300), clean(b.notes, 300)); sets.push('Notes=@t'); }
+  if (!sets.length) throw fail(400, 'Nothing to update');
+  await rq.query(`UPDATE dbo.MaterialItems SET ${sets.join(', ')} WHERE ItemId=@id`);
+  return ok;
+});
+r('adminMaterialDelete', 'DELETE', 'manage/materials/{id}', async req => {
+  await (await getPool()).request().input('id', sql.Int, Number(req.params.id)).query('DELETE dbo.MaterialItems WHERE ItemId=@id');
+  return ok;
+});
